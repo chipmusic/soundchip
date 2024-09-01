@@ -1,0 +1,10 @@
+[package]
+name = "soundchip"
+version = "0.1.0"
+edition = "2021"
+description = "A small and simple wrapper around SDL2"
+license = "MIT"
+# repository = "https://github.com/DoctorWhoof/soundchip.git"
+# documentation = "https://docs.rs/soundchip/latest/"
+
+[dependencies]
