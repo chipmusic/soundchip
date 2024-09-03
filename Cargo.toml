@@ -2,9 +2,14 @@
 name = "soundchip"
 version = "0.1.0"
 edition = "2021"
-description = "A small and simple wrapper around SDL2"
+description = "Simple software sinth with configurable channels for authentic retro sounds."
 license = "MIT"
-# repository = "https://github.com/DoctorWhoof/soundchip.git"
+repository = "https://github.com/chipmusic/soundchip"
 # documentation = "https://docs.rs/soundchip/latest/"
 
 [dependencies]
+libm = "0.2.8"
+smooth-buffer = "0.1.5"
+
+[workspace]
+members = [ "example"]
