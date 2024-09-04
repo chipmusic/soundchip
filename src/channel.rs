@@ -1,10 +1,5 @@
-
 use alloc::vec::Vec;
 use crate::{Note, Sample};
-
-// const C4_FREQ: f64 = 261.62558;
-// const NOTE_MULTIPLIER: f64 = 1.0594631;
-// const PITCH_OFFSET:f64 = 0.059463095;
 
 /// A single sound channel with configurable properties.
 pub struct Channel {
@@ -34,8 +29,6 @@ pub struct Channel {
     wavetable: Vec<f32>,
     period: f64,
     phase_accumulator: f64,
-    // time_per_sample: f64,
-    last_sample_time: f64,
     left_multiplier: f32,
     right_multiplier: f32,
 }
@@ -68,7 +61,6 @@ impl Channel {
             note: 0,
             period: 0.0,
             phase_accumulator: 0.0,
-            last_sample_time: 0.0,
             left_multiplier: 0.5,
             right_multiplier: 0.5,
         };
@@ -123,15 +115,13 @@ impl Channel {
     }
 
     #[inline(always)]
-    pub fn sample(&mut self, time: f64) -> Sample<f32> {
+    pub fn sample(&mut self, delta_time: f64) -> Sample<f32> {
         if self.muted {
             return Sample {
                 left: 0.0,
                 right: 0.0,
             };
         }
-        let delta_time = time - self.last_sample_time;
-        self.last_sample_time = time;
 
         let phase = (self.phase_accumulator % self.period) / self.period;
         self.phase_accumulator += delta_time;

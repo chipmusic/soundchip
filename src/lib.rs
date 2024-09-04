@@ -24,6 +24,7 @@ pub struct SoundChip {
     channels: Vec<Channel>,
     // buffer: Vec<i16>,
     sample_head: usize,
+    last_sample_time: f64,
 }
 
 const MAX_VOL: f32 = (i16::MAX - 100) as f32;
@@ -37,7 +38,7 @@ impl Default for SoundChip {
             channels: (0..4)
                 .map(|_| Channel::new(44100, 16, 16, 16, true))
                 .collect(),
-            // buffer: Vec::with_capacity(2000),
+            last_sample_time: 0.0,
         }
     }
 }
@@ -96,17 +97,21 @@ impl SoundChip {
         }
     }
 
-    /// Process samples and populates the output buffer. If the buffer is empty [SoundChip::iter]
-    /// won't return any values.
+    /// Process a single sample
     pub fn process_sample(&mut self) -> Sample<i16> {
         let mut left: f32 = 0.0;
         let mut right: f32 = 0.0;
+
         let time = self.sample_head as f64 / self.output_mix_rate as f64;
+        let delta_time = time - self.last_sample_time;
+        self.last_sample_time = time;
+
         for channel in &mut self.channels {
-            let sample = channel.sample(time);
+            let sample = channel.sample(delta_time);
             left += sample.left;
             right += sample.right;
         }
+
         let len = self.channels.len() as f32;
         let left = ((left / len).clamp(-1.0, 1.0) * MAX_VOL) as i16;
         let right = ((right / len).clamp(-1.0, 1.0) * MAX_VOL) as i16;
@@ -133,16 +138,3 @@ impl<'a> Iterator for SoundChipIter<'a> {
         None
     }
 }
-
-// impl<'a> Iterator for SoundChipIter<'a> {
-//     type Item = i16;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.head < self.chip.buffer.len() {
-//             self.head += 1;
-//             self.chip.buffer.pop()
-//         } else {
-//             None
-//         }
-//     }
-// }

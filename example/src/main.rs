@@ -7,7 +7,7 @@ fn main() -> SdlResult {
         "chip",
         320,
         240,
-        Timing::VsyncLimitFPS(120.0),
+        Timing::VsyncLimitFPS(60.0),
         Scaling::StretchToWindow,
     )?;
     app.audio_start();
@@ -31,10 +31,9 @@ fn main() -> SdlResult {
             }
         }
 
-        let elapsed = app.elapsed_time_raw();
-
         let mut audio_input = app.audio_device.lock();
-        let sample_count = audio_input.frames_available(elapsed);
+        let sample_count = audio_input.frames_available();
+        // println!("{sample_count}");
         for sample in chip.iter(sample_count) {
             audio_input.push_sample(StereoFrame {
                 left: sample.left,
