@@ -21,29 +21,27 @@ pub use chip_specs::*;
 
 extern crate alloc;
 use alloc::vec::Vec;
-use smooth_buffer::SmoothBuffer;
+// use smooth_buffer::SmoothBuffer;
 
 /// Contains multiple sound channels, and can render and mix them all at once.
 pub struct SoundChip {
     pub output_mix_rate: u32,
     channels: Vec<Channel>,
-    buffer_left: SmoothBuffer<3>,
-    buffer_right: SmoothBuffer<3>,
+    // buffer_left: SmoothBuffer<3>,
+    // buffer_right: SmoothBuffer<3>,
     sample_head: usize,
     last_sample_time: f64,
 }
 
-const MAX_VOL: f32 = (i16::MAX - 100) as f32;
+const MAX_VOL: f32 = (i16::MAX - 1) as f32;
 
 impl Default for SoundChip {
     fn default() -> Self {
         Self {
             output_mix_rate: 44100,
-            channels: (0..4)
-                .map(|_| Channel::new(44100, 16, 16, 16, true))
-                .collect(),
-            buffer_left: SmoothBuffer::default(),
-            buffer_right: SmoothBuffer::default(),
+            channels: (0..4).map(|_| Channel::default()).collect(),
+            // buffer_left: SmoothBuffer::default(),
+            // buffer_right: SmoothBuffer::default(),
             sample_head: 0,
             last_sample_time: 0.0,
         }
@@ -51,23 +49,24 @@ impl Default for SoundChip {
 }
 
 impl SoundChip {
-    /// Creates a SoundChip pre-configured to generate 4 channels, each with a 16x16 wavetable.
-    pub fn new(mix_rate: u32) -> Self {
+    /// Creates a SoundChip pre-configured to generate 4 channels, each with a 16x16 wavetable and capable
+    /// of noise.
+    pub fn new(sample_rate: u32) -> Self {
         Self {
             channels: (0..4)
-                .map(|_| Channel::new(mix_rate, 16, 16, 16, true))
+                .map(|_| Channel::new_psg(sample_rate, true))
                 .collect(),
             ..Default::default()
         }
     }
 
     /// Creates a SoundChip configured to replicate an AY-3-8910 sound chip with 3 square wave channels.
-    pub fn new_msx(mix_rate: u32) -> Self {
+    pub fn new_msx(sample_rate: u32) -> Self {
         Self {
             channels: (0..3)
                 .map(|i| match i {
-                    0 => Channel::new(mix_rate, 16, 16, 8, true),
-                    _ => Channel::new(mix_rate, 16, 16, 8, false),
+                    0 => Channel::new_psg(sample_rate, true),
+                    _ => Channel::new_psg(sample_rate, false),
                 })
                 .collect(),
             ..Default::default()
@@ -76,13 +75,13 @@ impl SoundChip {
 
     /// Creates a SoundChip configured to replicate an AY-3-8910 sound chip with 3 square wave channels plus
     /// an SCC chip with 5 wavetable channels (32 byte samples).
-    pub fn new_msx_scc(mix_rate: u32) -> Self {
+    pub fn new_msx_scc(sample_rate: u32) -> Self {
         Self {
             channels: (0..3)
                 .map(|i| match i {
-                    0 => Channel::new(mix_rate, 16, 16, 8, true),
-                    1 | 2 => Channel::new(mix_rate, 16, 16, 8, false),
-                    _ => Channel::new(mix_rate, 16, 256, 32, false),
+                    0 => Channel::new_psg(sample_rate, true),
+                    1 | 2 => Channel::new_psg(sample_rate, false),
+                    _ => Channel::new_scc(sample_rate),
                 })
                 .collect(),
             ..Default::default()
@@ -94,15 +93,20 @@ impl SoundChip {
         self.channels.get_mut(index)
     }
 
-    pub fn channel_start_all(&mut self) {
+    pub fn channel_start_all(&mut self, play: bool) {
         for channel in &mut self.channels {
-            channel.playing = true;
+            channel.set_note(4, Note::C);
+            if play {
+                channel.play()
+            } else {
+                channel.calculate_multipliers();
+            }
         }
     }
 
     pub fn channel_stop_all(&mut self) {
         for channel in &mut self.channels {
-            channel.playing = false;
+            channel.stop();
         }
     }
 
@@ -132,14 +136,18 @@ impl SoundChip {
         }
 
         let len = self.channels.len() as f32;
-        self.buffer_left.push((left / len).clamp(-1.0, 1.0));
-        self.buffer_right.push((right / len).clamp(-1.0, 1.0));
 
         self.sample_head += 1;
         Sample {
-            left: (self.buffer_left.average() * MAX_VOL) as i16,
-            right: (self.buffer_right.average() * MAX_VOL) as i16,
+            left: ((left / len).clamp(-1.0, 1.0) * MAX_VOL) as i16,
+            right: ((right / len).clamp(-1.0, 1.0) * MAX_VOL) as i16,
         }
+        // self.buffer_left.push((left / len).clamp(-1.0, 1.0));
+        // self.buffer_right.push((right / len).clamp(-1.0, 1.0));
+        // Sample {
+        //     left: (self.buffer_left.average() * MAX_VOL) as i16,
+        //     right: (self.buffer_right.average() * MAX_VOL) as i16,
+        // }
     }
 }
 
@@ -161,3 +169,18 @@ impl<'a> Iterator for SoundChipIter<'a> {
         None
     }
 }
+
+#[inline(always)]
+pub fn quantize(value: f32, size: f32) -> f32 {
+    libm::roundf(value / size) * size
+}
+
+// Handles negative values. Warning, only the volume should be non-linearized,
+// samples should stay as-is.
+// pub fn non_linear(x:f32, y:f32) -> f32 {
+//     if x >= 0.0 {
+//         libm::powf(x, y)
+//     } else {
+//         -libm::powf(-x, y)
+//     }
+// }
