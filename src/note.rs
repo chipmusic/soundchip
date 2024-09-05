@@ -1,4 +1,4 @@
-/// The Note enum can be used in lieu of u8 in any function that takes i32 as an argument.
+/// The Note enum can be used in lieu of MIDI note codes in any function that takes i32 as an argument.
 
 #[repr(i32)]
 pub enum Note {

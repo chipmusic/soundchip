@@ -9,7 +9,7 @@ repository = "https://github.com/chipmusic/soundchip"
 
 [dependencies]
 libm = "0.2.8"
-smooth-buffer = "0.1.5"
+smooth-buffer = { path = "../smooth_buffer" }
 
 [workspace]
 members = [ "example"]

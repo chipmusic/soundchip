@@ -13,16 +13,22 @@ pub use sample::*;
 mod note;
 pub use note::*;
 
+mod error;
+pub use error::*;
+
+mod chip_specs;
+pub use chip_specs::*;
+
 extern crate alloc;
 use alloc::vec::Vec;
+use smooth_buffer::SmoothBuffer;
 
-/// Contains multiple sound channels, and can render them all at once. The resulting buffer can
-/// be iterated to obtain the final stereo samples (interleaved, left then right).
+/// Contains multiple sound channels, and can render and mix them all at once.
 pub struct SoundChip {
-    pub is_playing: bool,
     pub output_mix_rate: u32,
     channels: Vec<Channel>,
-    // buffer: Vec<i16>,
+    buffer_left: SmoothBuffer<3>,
+    buffer_right: SmoothBuffer<3>,
     sample_head: usize,
     last_sample_time: f64,
 }
@@ -32,12 +38,13 @@ const MAX_VOL: f32 = (i16::MAX - 100) as f32;
 impl Default for SoundChip {
     fn default() -> Self {
         Self {
-            is_playing: false,
-            sample_head: 0,
             output_mix_rate: 44100,
             channels: (0..4)
                 .map(|_| Channel::new(44100, 16, 16, 16, true))
                 .collect(),
+            buffer_left: SmoothBuffer::default(),
+            buffer_right: SmoothBuffer::default(),
+            sample_head: 0,
             last_sample_time: 0.0,
         }
     }
@@ -87,13 +94,25 @@ impl SoundChip {
         self.channels.get_mut(index)
     }
 
+    pub fn channel_start_all(&mut self) {
+        for channel in &mut self.channels {
+            channel.playing = true;
+        }
+    }
+
+    pub fn channel_stop_all(&mut self) {
+        for channel in &mut self.channels {
+            channel.playing = false;
+        }
+    }
+
     /// Iterates through every sample currently in the buffer.
     /// Use [SoundChip::process_samples] to fill the buffer.
-    pub fn iter(&mut self, sample_count:usize) -> SoundChipIter {
+    pub fn iter(&mut self, sample_count: usize) -> SoundChipIter {
         SoundChipIter {
             chip: self,
             head: 0,
-            sample_count
+            sample_count,
         }
     }
 
@@ -113,25 +132,29 @@ impl SoundChip {
         }
 
         let len = self.channels.len() as f32;
-        let left = ((left / len).clamp(-1.0, 1.0) * MAX_VOL) as i16;
-        let right = ((right / len).clamp(-1.0, 1.0) * MAX_VOL) as i16;
+        self.buffer_left.push((left / len).clamp(-1.0, 1.0));
+        self.buffer_right.push((right / len).clamp(-1.0, 1.0));
+
         self.sample_head += 1;
-        Sample { left, right }
+        Sample {
+            left: (self.buffer_left.average() * MAX_VOL) as i16,
+            right: (self.buffer_right.average() * MAX_VOL) as i16,
+        }
     }
 }
 
-/// Iterates all values currently in the buffer. Use [SoundChip::process_samples] to populate the buffer.
+/// Iterates a specified number of samples. Use [SoundChip::iter()] to obtain this iterator.
 pub struct SoundChipIter<'a> {
     chip: &'a mut SoundChip,
     head: usize,
-    sample_count:usize
+    sample_count: usize,
 }
 
 impl<'a> Iterator for SoundChipIter<'a> {
     type Item = Sample<i16>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.head < self.sample_count{
+        if self.head < self.sample_count {
             self.head += 1;
             return Some(self.chip.process_sample());
         }
