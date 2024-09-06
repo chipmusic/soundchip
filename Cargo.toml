@@ -5,7 +5,7 @@ edition = "2021"
 description = "Simple software sinth with configurable channels for authentic retro sounds."
 license = "MIT"
 repository = "https://github.com/chipmusic/soundchip"
-# documentation = "https://docs.rs/soundchip/latest/"
+documentation = "https://docs.rs/soundchip/latest/"
 
 [dependencies]
 libm = "0.2.8"
