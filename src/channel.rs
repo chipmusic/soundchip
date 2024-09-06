@@ -147,7 +147,7 @@ impl Channel {
         Ok(())
     }
 
-    /// A value between 0.0 and 1.0. In practice it will be quantized using "volume steps".
+    /// A value between 0.0 and 1.0. In practice it will be quantized using "volume steps"
     /// from the ChipSpecs, and receive a fixed gain also defined in the specs.
     pub fn set_volume(&mut self, volume: f32) {
         self.volume = volume;
