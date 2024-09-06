@@ -1,19 +1,19 @@
 use hound::{WavSpec, WavWriter};
-use std::path::Path;
 use mini_sdl::*;
 use soundchip::*;
+use std::path::Path;
 
 fn main() -> SdlResult {
     let env_step = 1.0 / 60.0;
-    let ch =4;
-    let mut chip = SoundChip::new_msx_scc(44100);
-    // let mut chip = SoundChip::default();
+    let ch = 0;
+    let mut chip = SoundChip::new_msx_scc(48000);
     let mut app = App::new(
         "chip",
         320,
         240,
         Timing::VsyncLimitFPS(60.0),
         Scaling::StretchToWindow,
+        chip.sample_rate,
     )?;
     app.audio_start();
 
@@ -23,7 +23,7 @@ fn main() -> SdlResult {
 
     let wav_spec = WavSpec {
         channels: 2,
-        sample_rate: chip.output_mix_rate,
+        sample_rate: chip.sample_rate,
         bits_per_sample: 16,
         sample_format: hound::SampleFormat::Int,
     };
@@ -36,7 +36,6 @@ fn main() -> SdlResult {
 
         // Use Key arrows to pitch note up or down
         if let Some(channel) = chip.channel(ch) {
-
             if channel.is_playing() {
                 let vol = channel.volume();
                 channel.set_volume((vol - env_step).clamp(0.0, 1.0));
@@ -44,12 +43,12 @@ fn main() -> SdlResult {
 
             let note = channel.note();
             if app.gamepad.is_just_pressed(Button::Up) {
-                channel.set_note(4, note + 1, true);
+                channel.set_note(4, note + 1, false);
                 channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
-                channel.set_note(4, note - 1, true);
+                channel.set_note(4, note - 1, false);
                 channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }

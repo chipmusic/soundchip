@@ -25,7 +25,7 @@ use alloc::vec::Vec;
 
 /// Contains multiple sound channels, and can render and mix them all at once.
 pub struct SoundChip {
-    pub output_mix_rate: u32,
+    pub sample_rate: u32,
     channels: Vec<Channel>,
     // buffer_left: SmoothBuffer<3>,
     // buffer_right: SmoothBuffer<3>,
@@ -38,7 +38,7 @@ const MAX_VOL: f32 = (i16::MAX - 1) as f32;
 impl Default for SoundChip {
     fn default() -> Self {
         Self {
-            output_mix_rate: 44100,
+            sample_rate: 44100,
             channels: (0..4).map(|_| Channel::default()).collect(),
             // buffer_left: SmoothBuffer::default(),
             // buffer_right: SmoothBuffer::default(),
@@ -53,8 +53,9 @@ impl SoundChip {
     /// of noise.
     pub fn new(sample_rate: u32) -> Self {
         Self {
+            sample_rate,
             channels: (0..4)
-                .map(|_| Channel::new_psg(sample_rate, true))
+                .map(|_| Channel::new_psg(true))
                 .collect(),
             ..Default::default()
         }
@@ -63,10 +64,11 @@ impl SoundChip {
     /// Creates a SoundChip configured to replicate an AY-3-8910 sound chip with 3 square wave channels.
     pub fn new_msx(sample_rate: u32) -> Self {
         Self {
+            sample_rate,
             channels: (0..3)
                 .map(|i| match i {
-                    0 => Channel::new_psg(sample_rate, true),
-                    _ => Channel::new_psg(sample_rate, false),
+                    0 => Channel::new_psg(true),
+                    _ => Channel::new_psg(false),
                 })
                 .collect(),
             ..Default::default()
@@ -77,11 +79,12 @@ impl SoundChip {
     /// an SCC chip with 5 wavetable channels (32 byte samples).
     pub fn new_msx_scc(sample_rate: u32) -> Self {
         Self {
+            sample_rate,
             channels: (0..7)
                 .map(|i| match i {
-                    0 => Channel::new_psg(sample_rate, true),
-                    1 | 2 => Channel::new_psg(sample_rate, false),
-                    _ => Channel::new_scc(sample_rate),
+                    0 => Channel::new_psg(true),
+                    1 | 2 => Channel::new_psg(false),
+                    _ => Channel::new_scc()
                 })
                 .collect(),
             ..Default::default()
@@ -125,7 +128,7 @@ impl SoundChip {
         let mut left: f32 = 0.0;
         let mut right: f32 = 0.0;
 
-        let time = self.sample_head as f64 / self.output_mix_rate as f64;
+        let time = self.sample_head as f64 / self.sample_rate as f64;
         let delta_time = time - self.last_sample_time;
         self.last_sample_time = time;
 

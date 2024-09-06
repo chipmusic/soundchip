@@ -4,7 +4,7 @@ use core::f32::consts::TAU;
 
 /// A single sound channel with configurable properties.
 pub struct Channel {
-    /// The virtual Chip used in this channel
+    /// The virtual Chip specs used in this channel.
     pub chip: ChipSpecs,
     /// Enables and disables sample looping. TODO: Looping strategies, i.e. In and Out points.
     pub loop_sample: bool,
@@ -57,12 +57,12 @@ impl Default for Channel {
 
 impl Channel {
     /// Creates a new channel configured with a square wave.
-    pub fn new_psg(sample_rate: u32, allow_noise: bool) -> Self {
+    pub fn new_psg(allow_noise: bool) -> Self {
         Self {
             chip: ChipSpecs {
-                sample_rate,
                 sample_steps: 1,
                 volume_gain: 5.0,
+                volume_attenuation:0.001,
                 allow_noise,
                 prevent_negative_values: true,
                 ..Default::default()
@@ -72,10 +72,9 @@ impl Channel {
     }
 
     /// Creates a new channel configured with a 32 byte wavetable
-    pub fn new_scc(sample_rate: u32) -> Self {
+    pub fn new_scc() -> Self {
         Self {
             chip: ChipSpecs {
-                sample_rate,
                 sample_steps: 256,
                 allow_noise: false,
                 volume_gain: 10.0,
@@ -129,7 +128,7 @@ impl Channel {
         self.pan
     }
 
-    /// Mutable access to the wavetable. Be careful to no set values beyond -1.0 to 1.0.
+    /// Mutable access to the wavetable. Be careful to not set values beyond -1.0 to 1.0.
     pub fn wavetable(&mut self) -> &mut Vec<f32> {
         &mut self.wavetable
     }
@@ -148,21 +147,22 @@ impl Channel {
         Ok(())
     }
 
-    /// A value between 0.0 and 1.0.In practice it will be quantized using "volume steps".
-    /// Will be quantized per chip settings.
+    /// A value between 0.0 and 1.0. In practice it will be quantized using "volume steps".
+    /// from the ChipSpecs, and receive a fixed gain also defined in the specs.
     pub fn set_volume(&mut self, volume: f32) {
         self.volume = volume;
         self.calculate_multipliers();
     }
 
-    /// Stereo panning. Leave at 0.0 for mono channels. Will be quantized per chip settings.
+    /// Stereo panning. Leave at 0.0 for mono channels. Will be quantized per ChipSpecs.
     pub fn set_pan(&mut self, pan: f32) {
         self.pan = pan;
         self.calculate_multipliers();
     }
 
     // TODO: f32 note (for pitch sliding), frequency quantization
-    /// Adjusts internal pitch values to correspond to octave and note( where C = 0, C# = 1, etc.)
+    /// Adjusts internal pitch values to correspond to octave and note( where C = 0, C# = 1, etc.).
+    /// "reset_time" forces the waveform to start from position 0, ignoring previous phase.
     pub fn set_note(&mut self, octave: impl Into<i32>, note: impl Into<i32>, reset_time: bool) {
         // cache current phase to re-apply at the end
         let previous_phase = (self.time % self.period) / self.period;

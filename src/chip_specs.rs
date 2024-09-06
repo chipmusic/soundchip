@@ -1,8 +1,6 @@
 /// Virtual sound chip's audio properties, which can be manipulated to mimic various
 /// kinds of audio hardware per channel.
 pub struct ChipSpecs {
-    /// The output mix rate in Hertz, usually 44100 but depends on your sound playback device.
-    pub sample_rate: u32,
     /// The number of steps per sample. For a PSG with only square waves this number doesn't matter
     /// as long as it's 1 or higher. For a simple wavetable like the SCC this number is 256 (1 byte).
     pub sample_steps: u16,
@@ -16,6 +14,7 @@ pub struct ChipSpecs {
     /// will more quickly reset to zero.
     pub volume_attenuation: f32,
     /// Adusts the volume envelope to a non-linear response.
+    /// 1.0 is linear, PSG chips seem to be between 2.0 and 3.0.
     pub volume_exponent: f32,
     /// Allows certain chips to sound quieter or louder without affecting the channel's volume setting.
     pub volume_gain: f32,
@@ -29,7 +28,6 @@ pub struct ChipSpecs {
 impl Default for ChipSpecs {
     fn default() -> Self {
         Self {
-            sample_rate: 44100,
             sample_steps: 16,
             volume_steps: 16,
             pan_steps: 16,
