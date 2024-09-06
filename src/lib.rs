@@ -19,6 +19,12 @@ pub use error::*;
 mod chip_specs;
 pub use chip_specs::*;
 
+mod noise;
+pub use noise::*;
+
+mod channel_envelope;
+pub use channel_envelope::*;
+
 extern crate alloc;
 use alloc::vec::Vec;
 // use smooth_buffer::SmoothBuffer;

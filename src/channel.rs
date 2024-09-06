@@ -29,7 +29,7 @@ pub struct Channel {
 impl Default for Channel {
     fn default() -> Self {
         Self {
-            // Default sine wave
+            // Default sine wave with 16 samples.
             wavetable: (0..16)
                 .map(|i| {
                     let a = (i as f32 / 16.0) * TAU;
