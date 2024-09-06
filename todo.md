@@ -2,6 +2,8 @@
 
 [ ] readme.md
 
+[ ] Additional presets: NES, PCEngine
+
 [x] Output to wav file for debugging purposes (in example, not in library).
 
 [.] Chip specs processing:

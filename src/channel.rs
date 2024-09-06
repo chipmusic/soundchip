@@ -8,20 +8,20 @@ pub struct Channel {
     pub chip: ChipSpecs,
     /// Enables and disables sample looping. TODO: Looping strategies, i.e. In and Out points.
     pub loop_sample: bool,
-    // Internal state
+    // Internal state. All timing values are f64, sample values are f32.
     playing: bool,
+    wavetable: Vec<f32>,
+    period: f64,
+    time: f64,
     output: f32,
     volume: f32,
     pan: f32,
     octave: i32,
     note: i32,
-    wavetable: Vec<f32>,
-    period: f64,
-    time: f64,
-    last_sample_index: usize,
-    last_sample_value: f32,
     left_multiplier: f32,
     right_multiplier: f32,
+    last_sample_value: f32,
+    last_sample_index: usize,
     // Gets populated automatically with inverted and clamped value from chip specs volume_attenuation
     output_attenuation: f32,
 }
@@ -61,7 +61,7 @@ impl Channel {
         Self {
             chip: ChipSpecs {
                 sample_steps: 1,
-                volume_gain: 5.0,
+                volume_gain: 7.0,
                 volume_attenuation:0.001,
                 allow_noise,
                 prevent_negative_values: true,
@@ -90,15 +90,18 @@ impl Channel {
         }
     }
 
+    /// Allows sound generation on this channel.
     pub fn play(&mut self) {
         self.playing = true;
         self.calculate_multipliers();
     }
 
+    /// Stops sound generation on this channel.
     pub fn stop(&mut self) {
         self.playing = false;
     }
 
+    /// Current playing state.
     pub fn is_playing(&self) -> bool {
         self.playing
     }
@@ -114,8 +117,8 @@ impl Channel {
     }
 
     /// Current frequency.
-    pub fn pitch(&self) -> f64 {
-        1.0 / self.period
+    pub fn pitch(&self) -> f32 {
+        1.0 / self.period as f32
     }
 
     /// Current volume. Values above 1.0 may cause clipping.
@@ -147,31 +150,37 @@ impl Channel {
         Ok(())
     }
 
-    /// A value between 0.0 and 1.0. In practice it will be quantized using "volume steps"
-    /// from the ChipSpecs, and receive a fixed gain also defined in the specs.
+    /// A value between 0.0 and 1.0. It will be quantized, receive a fixed gain and
+    /// mapped to an exponential curve, according to the ChipSpecs.
     pub fn set_volume(&mut self, volume: f32) {
         self.volume = volume;
         self.calculate_multipliers();
     }
 
-    /// Stereo panning. Leave at 0.0 for mono channels. Will be quantized per ChipSpecs.
+    /// Stereo panning, from left (-1.0) to right (1.0). Centered is zero. Will be quantized per ChipSpecs.
     pub fn set_pan(&mut self, pan: f32) {
         self.pan = pan;
         self.calculate_multipliers();
     }
 
-    // TODO: f32 note (for pitch sliding), frequency quantization
     /// Adjusts internal pitch values to correspond to octave and note( where C = 0, C# = 1, etc.).
     /// "reset_time" forces the waveform to start from position 0, ignoring previous phase.
     pub fn set_note(&mut self, octave: impl Into<i32>, note: impl Into<i32>, reset_time: bool) {
-        // cache current phase to re-apply at the end
-        let previous_phase = (self.time % self.period) / self.period;
         // Handle negative values and values beyond range
         self.octave = wrap(octave.into(), 10);
         self.note = wrap(note.into(), 12);
         // MIDI note number, where C4 is 60
         let midi_note_number = (self.octave + 1) * 12 + self.note;
-        let frequency = libm::pow(2.0, (midi_note_number as f64 - 69.0) / 12.0) * 440.0;
+        self.set_midi_note(midi_note_number as f32, reset_time);
+    }
+
+    /// Same as set_note, but the notes are an f32 value which allows "in-between" notes, or pitch sliding,
+    /// and uses MIDI codes instead of octave and note, i.e. C4 is MIDI code 60.
+    pub fn set_midi_note(&mut self, note: f32, reset_time:bool){
+        // cache current phase to re-apply at the end
+        let previous_phase = (self.time % self.period as f64) / self.period as f64;
+        // Calculate note frequency
+        let frequency = libm::pow(2.0, (note as f64 - 69.0) / 12.0) * 440.0;
         self.period = 1.0 / frequency;
         // If looping isn't required, ensure sample will be played from beginning.
         // Also, if channel is not playing it means we'll start playing a cycle

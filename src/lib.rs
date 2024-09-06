@@ -1,7 +1,7 @@
 //! The SoundChip struct contains multiple channels, each with configurable settings that can
 //! replicate old audio chips like PSGs and simple wave table chips.
-
-// #![no_std]
+#![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/readme.md"))]
+#![no_std]
 #![warn(clippy::std_instead_of_core, clippy::std_instead_of_alloc)]
 
 mod channel;
@@ -25,12 +25,14 @@ use alloc::vec::Vec;
 
 /// Contains multiple sound channels, and can render and mix them all at once.
 pub struct SoundChip {
+    /// The sampling rate at which mixing is performed. Should match your audio playback device,
+    /// but can be lower for improved performance. Usually 44100 or 48000.
     pub sample_rate: u32,
     channels: Vec<Channel>,
-    // buffer_left: SmoothBuffer<3>,
-    // buffer_right: SmoothBuffer<3>,
     sample_head: usize,
     last_sample_time: f64,
+    // buffer_left: SmoothBuffer<3>,
+    // buffer_right: SmoothBuffer<3>,
 }
 
 const MAX_VOL: f32 = (i16::MAX - 1) as f32;
@@ -40,10 +42,10 @@ impl Default for SoundChip {
         Self {
             sample_rate: 44100,
             channels: (0..4).map(|_| Channel::default()).collect(),
-            // buffer_left: SmoothBuffer::default(),
-            // buffer_right: SmoothBuffer::default(),
             sample_head: 0,
             last_sample_time: 0.0,
+            // buffer_left: SmoothBuffer::default(),
+            // buffer_right: SmoothBuffer::default(),
         }
     }
 }
@@ -55,7 +57,7 @@ impl SoundChip {
         Self {
             sample_rate,
             channels: (0..4)
-                .map(|_| Channel::new_psg(true))
+                .map(|_| Channel::default())
                 .collect(),
             ..Default::default()
         }
@@ -96,7 +98,8 @@ impl SoundChip {
         self.channels.get_mut(index)
     }
 
-    pub fn channel_start_all(&mut self, play: bool) {
+    /// Initializes every channel, and optionally starts playing them.
+    pub fn channel_init_all(&mut self, play: bool) {
         for channel in &mut self.channels {
             channel.set_note(4, Note::C, true);
             if play {
@@ -107,6 +110,7 @@ impl SoundChip {
         }
     }
 
+    /// Stops playback of all channels at once.
     pub fn channel_stop_all(&mut self) {
         for channel in &mut self.channels {
             channel.stop();
@@ -174,24 +178,12 @@ impl<'a> Iterator for SoundChipIter<'a> {
 }
 
 #[inline(always)]
-pub fn quantize(value: f32, steps: u16) -> f32 {
+// Provides quantization in a value with range -1.0 to 1.0.
+pub(crate) fn quantize(value: f32, steps: u16) -> f32 {
+    if steps == 0 { return 0.0 }
     if steps == 1 {
         return if value > 0.0 { 1.0 } else { -1.0 }
     }
     let size = 1.0 / (steps - 1) as f32;
     libm::roundf(value / size) * size
 }
-
-// pub fn quantize(value: f32, size: f32) -> f32 {
-//     libm::roundf(value / size) * size
-// }
-
-// Handles negative values. Warning, only the volume should be non-linearized,
-// samples should stay as-is.
-// pub fn non_linear(x:f32, y:f32) -> f32 {
-//     if x >= 0.0 {
-//         libm::powf(x, y)
-//     } else {
-//         -libm::powf(-x, y)
-//     }
-// }

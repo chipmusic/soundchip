@@ -34,7 +34,7 @@ impl Default for ChipSpecs {
             pitch_steps: 32,
             volume_attenuation: 0.0017,
             volume_exponent: 2.5,
-            volume_gain: 2.5,
+            volume_gain: 4.0,
             prevent_negative_values: false,
             allow_noise: true,
         }

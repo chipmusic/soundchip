@@ -1,12 +1,17 @@
 use hound::{WavSpec, WavWriter};
 use mini_sdl::*;
 use soundchip::*;
-use std::path::Path;
+use std::{env::var_os, path::PathBuf};
 
 fn main() -> SdlResult {
-    let env_step = 1.0 / 60.0;
+    // I have this path set to a ram disk on my machine,
+    // since I'm saving the wave file for debugging purposes only.
+    let target_file: PathBuf = var_os("CARGO_MANIFEST_DIR").unwrap().into();
+    let target_file = target_file.join("target/output.wav");
+    println!("Saving wav file to: {:?}", target_file);
+
     let ch = 0;
-    let mut chip = SoundChip::new_msx_scc(48000);
+    let mut chip = SoundChip::new(48000);
     let mut app = App::new(
         "chip",
         320,
@@ -16,30 +21,31 @@ fn main() -> SdlResult {
         chip.sample_rate,
     )?;
     app.audio_start();
+    println!("Use up and down arrows to play different notes.");
 
     if let Some(channel) = chip.channel(ch) {
         channel.play();
     }
 
+    // Writing in mono for simplicity! Ensure no pan is set in the channel!
     let wav_spec = WavSpec {
-        channels: 2,
+        channels: 1,
         sample_rate: chip.sample_rate,
         bits_per_sample: 16,
         sample_format: hound::SampleFormat::Int,
     };
-    let mut writer =
-        WavWriter::create(Path::new("output.wav"), wav_spec).map_err(|e| e.to_string())?;
+    let mut writer = WavWriter::create(target_file, wav_spec).map_err(|e| e.to_string())?;
 
-    // let mut play_note_time = Instant::now();
+    // mini_sdl main loop. MiniSDL assumes you want both graphics and sound!
     while !app.quit_requested {
         app.frame_start()?;
 
-        // Use Key arrows to pitch note up or down
         if let Some(channel) = chip.channel(ch) {
-            if channel.is_playing() {
-                let vol = channel.volume();
-                channel.set_volume((vol - env_step).clamp(0.0, 1.0));
-            }
+            // Lower the volume on every frame, simulating a 1 second volume envelope.
+            // Notice how this envelope is quantized to 16 steps, per chip settings.
+            let vol = channel.volume();
+            let env_step = app.elapsed_time() as f32;
+            channel.set_volume((vol - env_step).clamp(0.0, 1.0));
 
             let note = channel.note();
             if app.gamepad.is_just_pressed(Button::Up) {
@@ -63,9 +69,6 @@ fn main() -> SdlResult {
             });
             writer
                 .write_sample(i16::from(sample.left))
-                .map_err(|e| e.to_string())?;
-            writer
-                .write_sample(i16::from(sample.right))
                 .map_err(|e| e.to_string())?;
         }
         drop(audio_input);
