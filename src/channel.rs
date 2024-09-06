@@ -1,5 +1,6 @@
-use crate::{ChipError, ChipSpecs, Sample};
+use crate::{quantize, ChipError, ChipSpecs, Sample};
 use alloc::vec::Vec;
+use core::f32::consts::TAU;
 
 /// A single sound channel with configurable properties.
 pub struct Channel {
@@ -21,19 +22,24 @@ pub struct Channel {
     last_sample_value: f32,
     left_multiplier: f32,
     right_multiplier: f32,
+    // Gets populated automatically with inverted and clamped value from chip specs volume_attenuation
+    output_attenuation: f32,
 }
 
 impl Default for Channel {
     fn default() -> Self {
-        let wavetable = (0..16)
-            .map(|i| if i < 8 { 1.0 } else { -1.0 })
-            .collect();
         Self {
+            // Default sine wave
+            wavetable: (0..16)
+                .map(|i| {
+                    let a = (i as f32 / 16.0) * TAU;
+                    libm::sinf(a)
+                })
+                .collect(),
             chip: ChipSpecs::default(),
             playing: false,
             volume: 1.0,
             pan: 0.0,
-            wavetable,
             loop_sample: true,
             octave: 4,
             note: 60,
@@ -42,19 +48,21 @@ impl Default for Channel {
             left_multiplier: 0.5,
             right_multiplier: 0.5,
             output: 0.0,
+            output_attenuation: 0.0,
             last_sample_index: 0,
             last_sample_value: 0.0,
         }
     }
 }
 
-
 impl Channel {
     /// Creates a new channel configured with a square wave.
-    pub fn new_psg(sample_rate:u32, allow_noise:bool) -> Self {
+    pub fn new_psg(sample_rate: u32, allow_noise: bool) -> Self {
         Self {
             chip: ChipSpecs {
                 sample_rate,
+                sample_steps: 1,
+                volume_gain: 5.0,
                 allow_noise,
                 prevent_negative_values: true,
                 ..Default::default()
@@ -64,16 +72,21 @@ impl Channel {
     }
 
     /// Creates a new channel configured with a 32 byte wavetable
-    pub fn new_scc(sample_rate:u32) -> Self {
-        let wavetable = (0..32)
-            .map(|i| if i < 16 { 1.0 } else { -1.0 })
-            .collect();
+    pub fn new_scc(sample_rate: u32) -> Self {
         Self {
-            chip: ChipSpecs{
+            chip: ChipSpecs {
                 sample_rate,
+                sample_steps: 256,
+                allow_noise: false,
+                volume_gain: 10.0,
                 ..Default::default()
             },
-            wavetable,
+            wavetable:(0..32)
+                .map(|i| {
+                    let a = (i as f32 / 32.0) * TAU;
+                    libm::sinf(a)
+                })
+                .collect(),
             ..Default::default()
         }
     }
@@ -135,7 +148,6 @@ impl Channel {
         Ok(())
     }
 
-    // TODO: Quantize
     /// A value between 0.0 and 1.0.In practice it will be quantized using "volume steps".
     /// Will be quantized per chip settings.
     pub fn set_volume(&mut self, volume: f32) {
@@ -143,15 +155,15 @@ impl Channel {
         self.calculate_multipliers();
     }
 
-    // TODO: Quantize!
     /// Stereo panning. Leave at 0.0 for mono channels. Will be quantized per chip settings.
     pub fn set_pan(&mut self, pan: f32) {
         self.pan = pan;
         self.calculate_multipliers();
     }
 
+    // TODO: f32 note (for pitch sliding), frequency quantization
     /// Adjusts internal pitch values to correspond to octave and note( where C = 0, C# = 1, etc.)
-    pub fn set_note(&mut self, octave: impl Into<i32>, note: impl Into<i32>) {
+    pub fn set_note(&mut self, octave: impl Into<i32>, note: impl Into<i32>, reset_time: bool) {
         // cache current phase to re-apply at the end
         let previous_phase = (self.time % self.period) / self.period;
         // Handle negative values and values beyond range
@@ -164,7 +176,7 @@ impl Channel {
         // If looping isn't required, ensure sample will be played from beginning.
         // Also, if channel is not playing it means we'll start playing a cycle
         // from 0.0 to avoid clicks.
-        self.time = if !self.loop_sample || !self.playing {
+        self.time = if !self.loop_sample || !self.playing || reset_time {
             0.0
         } else {
             // Adjust time to ensure continuous change (instead of abrupt change)
@@ -176,7 +188,7 @@ impl Channel {
     /// Returns the current sample and advances the internal timer.
     pub(crate) fn sample(&mut self, delta_time: f64) -> Sample<f32> {
         // Always apply attenuation, so that values always drift to zero
-        self.output *= 1.0 - self.chip.volume_attenuation.clamp(0.0, 1.0);
+        self.output *= self.output_attenuation;
 
         // Early return if not playing
         if !self.playing {
@@ -202,8 +214,8 @@ impl Channel {
         // Obtain sample value and set it to output
         if index != self.last_sample_index {
             self.last_sample_index = index;
-            // TODO: Quantize!
-            let value = self.wavetable[index] as f32;
+            // TODO: Optional quantization!
+            let value = quantize(self.wavetable[index] as f32, self.chip.sample_steps);
             // Avoids resetting attenuation if value hasn't changed
             if value != self.last_sample_value {
                 if self.chip.prevent_negative_values {
@@ -213,7 +225,6 @@ impl Channel {
                 }
                 self.last_sample_value = value;
             }
-
         }
 
         Sample {
@@ -223,17 +234,22 @@ impl Channel {
     }
 
     #[inline(always)]
-    // Must be called after setting volume or pan, pre-calculates left and right multiplier.
+    // Must be called after setting volume or pan.
+    // Used to pre-calculate as many values as possible instead of doing it per sample, since
+    // this function is called much less frequently (by orders of magnitude)
     pub(crate) fn calculate_multipliers(&mut self) {
-        self.left_multiplier = libm::powf(
-            ((self.pan - 1.0) / -2.0) * self.volume * self.chip.volume_gain,
+        // Pre calculate this so we don't do it on every sample
+        self.output_attenuation = 1.0 - self.chip.volume_attenuation.clamp(0.0, 1.0);
+        // "pow" only gives the intended result in the 0 to 1 range, so we only apply
+        // the chip's gain after the pow function.
+        let volume = libm::powf(
+            quantize(self.volume, self.chip.volume_steps),
             self.chip.volume_exponent,
-        );
-        self.right_multiplier = libm::powf(
-            ((self.pan + 1.0) / 2.0) * self.volume * self.chip.volume_gain,
-            self.chip.volume_exponent,
-        );
-        // println!("{},{}", self.left_multiplier, self.right_multiplier);
+        ) * self.chip.volume_gain;
+        let pan = quantize(self.pan, self.chip.pan_steps);
+        self.left_multiplier = ((pan - 1.0) / -2.0) * volume;
+        self.right_multiplier = ((pan + 1.0) / 2.0) * volume;
+        // println!("pan:{}, volume:{}, ({},{})", pan, volume, self.left_multiplier, self.right_multiplier);
     }
 }
 

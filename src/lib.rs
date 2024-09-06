@@ -1,7 +1,7 @@
 //! The SoundChip struct contains multiple channels, each with configurable settings that can
 //! replicate old audio chips like PSGs and simple wave table chips.
 
-#![no_std]
+// #![no_std]
 #![warn(clippy::std_instead_of_core, clippy::std_instead_of_alloc)]
 
 mod channel;
@@ -77,7 +77,7 @@ impl SoundChip {
     /// an SCC chip with 5 wavetable channels (32 byte samples).
     pub fn new_msx_scc(sample_rate: u32) -> Self {
         Self {
-            channels: (0..3)
+            channels: (0..7)
                 .map(|i| match i {
                     0 => Channel::new_psg(sample_rate, true),
                     1 | 2 => Channel::new_psg(sample_rate, false),
@@ -95,7 +95,7 @@ impl SoundChip {
 
     pub fn channel_start_all(&mut self, play: bool) {
         for channel in &mut self.channels {
-            channel.set_note(4, Note::C);
+            channel.set_note(4, Note::C, true);
             if play {
                 channel.play()
             } else {
@@ -171,9 +171,17 @@ impl<'a> Iterator for SoundChipIter<'a> {
 }
 
 #[inline(always)]
-pub fn quantize(value: f32, size: f32) -> f32 {
+pub fn quantize(value: f32, steps: u16) -> f32 {
+    if steps == 1 {
+        return if value > 0.0 { 1.0 } else { -1.0 }
+    }
+    let size = 1.0 / (steps - 1) as f32;
     libm::roundf(value / size) * size
 }
+
+// pub fn quantize(value: f32, size: f32) -> f32 {
+//     libm::roundf(value / size) * size
+// }
 
 // Handles negative values. Warning, only the volume should be non-linearized,
 // samples should stay as-is.

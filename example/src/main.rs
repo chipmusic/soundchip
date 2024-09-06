@@ -1,11 +1,13 @@
 use hound::{WavSpec, WavWriter};
-use std::{path::Path, time::Instant};
+use std::path::Path;
 use mini_sdl::*;
 use soundchip::*;
 
 fn main() -> SdlResult {
-    let env_step = 1.0 / 16.0;
-    let mut chip = SoundChip::new(44100);
+    let env_step = 1.0 / 60.0;
+    let ch =4;
+    let mut chip = SoundChip::new_msx_scc(44100);
+    // let mut chip = SoundChip::default();
     let mut app = App::new(
         "chip",
         320,
@@ -15,20 +17,7 @@ fn main() -> SdlResult {
     )?;
     app.audio_start();
 
-    if let Some(channel) = chip.channel(0) {
-        let len = 32;
-        // let wave: Vec<f32> = (0..len)
-            // .map(|i| {
-            //     let a = i as f32 / len as f32 * core::f32::consts::TAU;
-            //     quantize(a.sin(), 1.0 / 16.0)
-            // })
-            // .collect();
-        let wave: Vec<f32> = (0..len)
-            .map(|i| if i > len / 2 { 1.0 } else { -1.0 })
-            .collect();
-        channel
-            .set_wavetable(wave.as_slice())
-            .map_err(|e| e.to_string())?;
+    if let Some(channel) = chip.channel(ch) {
         channel.play();
     }
 
@@ -41,35 +30,28 @@ fn main() -> SdlResult {
     let mut writer =
         WavWriter::create(Path::new("output.wav"), wav_spec).map_err(|e| e.to_string())?;
 
-    let mut play_note_time = Instant::now();
+    // let mut play_note_time = Instant::now();
     while !app.quit_requested {
         app.frame_start()?;
 
         // Use Key arrows to pitch note up or down
-        if let Some(channel) = chip.channel(0) {
-            if play_note_time.elapsed().as_secs_f32() > 0.5 {
-                channel.stop();
-            }
+        if let Some(channel) = chip.channel(ch) {
 
             if channel.is_playing() {
                 let vol = channel.volume();
-                channel.set_volume(vol - env_step);
+                channel.set_volume((vol - env_step).clamp(0.0, 1.0));
             }
 
             let note = channel.note();
             if app.gamepad.is_just_pressed(Button::Up) {
-                channel.set_note(4, note + 1);
-                println!("Octave:{}, note:{}", channel.octave(), channel.note());
-                play_note_time = Instant::now();
-                channel.play();
+                channel.set_note(4, note + 1, true);
                 channel.set_volume(1.0);
+                println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
-                channel.set_note(4, note - 1);
-                println!("Octave:{}, note:{}", channel.octave(), channel.note());
-                play_note_time = Instant::now();
-                channel.play();
+                channel.set_note(4, note - 1, true);
                 channel.set_volume(1.0);
+                println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
         }
 
