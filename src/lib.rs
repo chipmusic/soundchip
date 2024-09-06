@@ -113,8 +113,8 @@ impl SoundChip {
         }
     }
 
-    /// Iterates through every sample currently in the buffer.
-    /// Use [SoundChip::process_samples] to fill the buffer.
+    /// Renders a given number of samples on demand. Normally the requested sample count
+    /// should be 'sample_rate * elapsed_time';
     pub fn iter(&mut self, sample_count: usize) -> SoundChipIter {
         SoundChipIter {
             chip: self,
@@ -123,7 +123,7 @@ impl SoundChip {
         }
     }
 
-    /// Process a single sample
+    /// Process a single sample, advancing internal timer.
     pub fn process_sample(&mut self) -> Sample<i16> {
         let mut left: f32 = 0.0;
         let mut right: f32 = 0.0;
