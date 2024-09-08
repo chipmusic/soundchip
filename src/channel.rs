@@ -277,7 +277,7 @@ impl Channel {
         let rng_len = self.rng_cache.len();
         let noise = match self.specs.noise {
             Noise::None => { 0.0 },
-            Noise::Random { volume_steps, pitch_multiplier } => {
+            Noise::Random { volume_steps, .. } => {
                 quantize_full_range(self.rng.next_f32(), volume_steps)
             },
             Noise::Melodic { pitch_multiplier, .. } => {

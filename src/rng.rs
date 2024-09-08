@@ -1,4 +1,4 @@
-use crate::{quantize, quantize_full_range};
+use crate::quantize_full_range;
 
 pub struct Rng {
     bit_count: u32,

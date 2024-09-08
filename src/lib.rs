@@ -22,7 +22,7 @@ pub use chip_specs::*;
 mod noise;
 pub use noise::*;
 
-mod channel_envelope;
+// mod channel_envelope;
 // pub use channel_envelope::*;
 
 pub mod rng;
@@ -148,7 +148,6 @@ impl SoundChip {
 
     /// Process a single sample, advancing internal timer.
     pub fn process_sample(&mut self) -> Sample<i16> {
-        let len = self.channels.len() as f32;
         let mut left: f32 = 0.0;
         let mut right: f32 = 0.0;
 
