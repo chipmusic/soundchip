@@ -1,8 +1,8 @@
 //! The SoundChip struct contains multiple channels, each with configurable settings that can
 //! replicate old audio chips like PSGs and simple wave table chips.
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/readme.md"))]
-#![no_std]
 #![warn(clippy::std_instead_of_core, clippy::std_instead_of_alloc)]
+// #![no_std]
 
 mod channel;
 pub use channel::*;
@@ -23,7 +23,10 @@ mod noise;
 pub use noise::*;
 
 mod channel_envelope;
-pub use channel_envelope::*;
+// pub use channel_envelope::*;
+
+pub mod rng;
+pub(crate) use rng::*;
 
 extern crate alloc;
 use alloc::vec::Vec;
@@ -60,17 +63,19 @@ impl SoundChip {
     /// Creates a SoundChip pre-configured to generate 4 channels, each with a 16x16 wavetable and capable
     /// of noise.
     pub fn new(sample_rate: u32) -> Self {
+        println!("New default sound chip");
+        let channels = vec![ Channel::default() ];
         Self {
             sample_rate,
-            channels: (0..4)
-                .map(|_| Channel::default())
-                .collect(),
-            ..Default::default()
+            channels,
+            sample_head: 0,
+            last_sample_time: 0.0,
         }
     }
 
     /// Creates a SoundChip configured to replicate an AY-3-8910 sound chip with 3 square wave channels.
     pub fn new_msx(sample_rate: u32) -> Self {
+        println!("New MSX sound chip");
         Self {
             sample_rate,
             channels: (0..3)
@@ -79,29 +84,37 @@ impl SoundChip {
                     _ => Channel::new_psg(false),
                 })
                 .collect(),
-            ..Default::default()
+            sample_head: 0,
+            last_sample_time: 0.0,
         }
     }
 
     /// Creates a SoundChip configured to replicate an AY-3-8910 sound chip with 3 square wave channels plus
     /// an SCC chip with 5 wavetable channels (32 byte samples).
     pub fn new_msx_scc(sample_rate: u32) -> Self {
+        println!("New MSX-SCC sound chip");
         Self {
             sample_rate,
-            channels: (0..7)
+            channels: (0..8)
                 .map(|i| match i {
                     0 => Channel::new_psg(true),
                     1 | 2 => Channel::new_psg(false),
                     _ => Channel::new_scc()
                 })
                 .collect(),
-            ..Default::default()
+            sample_head: 0,
+            last_sample_time: 0.0,
         }
     }
 
     /// Returns a reference to the channel with the given index, None if channel doesn't exist.
     pub fn channel(&mut self, index: usize) -> Option<&mut Channel> {
         self.channels.get_mut(index)
+    }
+
+    /// Returns a reference to the channels Vec.
+    pub fn channels(&mut self) -> &mut Vec<Channel> {
+        &mut self.channels
     }
 
     /// Initializes every channel, and optionally starts playing them.
@@ -135,6 +148,7 @@ impl SoundChip {
 
     /// Process a single sample, advancing internal timer.
     pub fn process_sample(&mut self) -> Sample<i16> {
+        let len = self.channels.len() as f32;
         let mut left: f32 = 0.0;
         let mut right: f32 = 0.0;
 
@@ -148,12 +162,10 @@ impl SoundChip {
             right += sample.right;
         }
 
-        let len = self.channels.len() as f32;
-
         self.sample_head += 1;
         Sample {
-            left: ((left / len).clamp(-1.0, 1.0) * MAX_VOL) as i16,
-            right: ((right / len).clamp(-1.0, 1.0) * MAX_VOL) as i16,
+            left: (left.clamp(-1.0, 1.0) * MAX_VOL) as i16,
+            right: (right.clamp(-1.0, 1.0) * MAX_VOL) as i16,
         }
         // self.buffer_left.push((left / len).clamp(-1.0, 1.0));
         // self.buffer_right.push((right / len).clamp(-1.0, 1.0));
@@ -184,7 +196,7 @@ impl<'a> Iterator for SoundChipIter<'a> {
 }
 
 #[inline(always)]
-// Provides quantization in a value with range -1.0 to 1.0.
+// Provides quantization in a value with range 0.0 to 1.0.
 pub(crate) fn quantize(value: f32, steps: u16) -> f32 {
     if steps == 0 { return 0.0 }
     if steps == 1 {
@@ -192,4 +204,17 @@ pub(crate) fn quantize(value: f32, steps: u16) -> f32 {
     }
     let size = 1.0 / (steps - 1) as f32;
     libm::roundf(value / size) * size
+}
+
+// Provides quantization in a value with range -1.0 to 1.0.
+pub(crate) fn quantize_full_range(value: f32, steps: u16) -> f32 {
+    if steps == 0 { return 0.0 }
+    if steps == 1 {
+        return if value > 0.0 { 1.0 } else { -1.0 }
+    }
+    // Map to normal range
+    let value = (value + 1.0) / 2.0;
+    let size = 1.0 / (steps - 1) as f32;
+    let result = libm::roundf(value / size) * size;
+    (result * 2.0) - 1.0
 }

@@ -11,20 +11,18 @@ fn main() -> SdlResult {
     println!("Saving wav file to: {:?}", target_file);
 
     let ch = 0;
-    let mut chip = SoundChip::new(48000);
-    let mut app = App::new(
-        "chip",
-        320,
-        240,
-        Timing::VsyncLimitFPS(60.0),
-        Scaling::StretchToWindow,
-        chip.sample_rate,
-    )?;
+    let mut app = App::default()?;
     app.audio_start();
+
+    let mut chip = SoundChip::new(app.audio_mixrate() as u32);
+
     println!("Use up and down arrows to play different notes.");
+    println!("Hit return to toggle noise/tone .");
+    println!("Channels: {}", chip.channels().len());
 
     if let Some(channel) = chip.channel(ch) {
         channel.play();
+        channel.set_noise(true);
     }
 
     // Writing in mono for simplicity! Ensure no pan is set in the channel!
@@ -46,6 +44,15 @@ fn main() -> SdlResult {
             let vol = channel.volume();
             let env_step = app.elapsed_time() as f32;
             channel.set_volume((vol - env_step).clamp(0.0, 1.0));
+
+            if app.gamepad.is_just_pressed(Button::Start) {
+                if channel.is_noise(){
+                    channel.set_noise(false);
+                } else {
+                    channel.set_noise(true);
+                }
+                println!("Channel noise: {}", channel.is_noise());
+            }
 
             let note = channel.note();
             if app.gamepad.is_just_pressed(Button::Up) {

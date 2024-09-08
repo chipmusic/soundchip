@@ -4,15 +4,19 @@ Notice that soundchip is *not* an emulator, it simply allows you to customize th
 
 ```rust
 ChipSpec {
-    sample_steps: 1,                // Square wave only, sample is either -1.0 or 1.0
-    volume_steps: 16,               // 4 bit volume register allows 16 volume levels
-    pan_steps: 0,                   // No stereo
-    pitch_steps: 32,                // Just an approximation, 4096 pitch steps in 10 octaves
-    volume_attenuation: 0.0017,     // Causes the volume to drop just a little bit over time after each wave cycle
-    volume_exponent: 2.5,           // Non-linear volume envelope
-    volume_gain: 5.0,               // Each chip will need custom gain to sound more accurate
-    prevent_negative_values: true,  // Fits the generated wave into 0.0 to 1.0 values
-    allow_noise: true,              // The AY-3-8910 could play noise in one of its 3 channels at a time
+    sample_steps: 1,                // Square wave only, sample is either -1.0 or 1.0.
+    volume_steps: 16,               // 4 bit volume register allows 16 volume levels.
+    pan_steps: 0,                   // No stereo (quantized value is always zero).
+    pitch_steps: 32,                // Just an approximation, 4096 pitch steps in 10 octaves.
+    volume_attenuation: 0.0017,     // Volume declines until internal wavetable changes value.
+    volume_exponent: 3.0,           // Non-linear volume envelope.
+    volume_gain: 1.0,               // Some chips may need custom gain to sound more accurate.
+    prevent_negative_values: true,  // Fits the generated wave into 0.0 to 1.0 values.
+    noise: Noise::Melodic {    // Noise settings (in one of its 3 channels at a time).
+        lfsr_length: 5,
+        pitch_multiplier: 5.0,
+        volume_steps: 1,
+    },
 }
 ```
 
