@@ -1,6 +1,8 @@
-use crate::{quantize, quantize_full_range, ChipError, ChipSpecs, Noise, Rng, Sample};
+use crate::{quantize, quantize_full_range, ChipError, ChipSpecs, Noise, Note, Rng, Sample};
 use alloc::vec::Vec;
 use core::f32::consts::TAU;
+
+const FREQ_C4: f64 = 261.63;
 
 /// A single sound channel with configurable properties.
 pub struct Channel {
@@ -24,8 +26,12 @@ pub struct Channel {
     last_sample_index: usize,
     // Gets populated automatically with inverted and clamped value from chip specs volume_attenuation
     output_attenuation: f32,
+    // Noise
     rng: Rng,
     rng_cache: Vec<f32>,
+    subsample_counter: f32,
+    lfsr_samples_per_cycle: f32,
+    noise_output: f32,
 }
 
 impl Default for Channel {
@@ -34,7 +40,7 @@ impl Default for Channel {
         let specs = ChipSpecs::default();
         let rng = Self::get_rng(&specs);
         let rng_cache = Self::get_rng_cache(&specs);
-        Self {
+        let mut result = Self {
             // Default sine wave with 16 samples.
             wavetable: (0..16)
                 .map(|i| {
@@ -49,7 +55,7 @@ impl Default for Channel {
             loop_sample: true,
             octave: 4,
             note: 60,
-            period: 1.0 / 261.63,
+            period: 1.0 / FREQ_C4,
             time: 0.0,
             left_multiplier: 0.5,
             right_multiplier: 0.5,
@@ -57,10 +63,16 @@ impl Default for Channel {
             output_attenuation: 0.0,
             last_sample_index: 0,
             last_sample_value: 0.0,
+            subsample_counter: 0.0,
+            lfsr_samples_per_cycle: 0.0,
+            noise_output: 0.0,
             specs,
             rng,
             rng_cache,
-        }
+        };
+        result.set_note(4, Note::C, true);
+        result.set_volume(1.0);
+        result
     }
 }
 
@@ -72,7 +84,11 @@ impl Channel {
             volume_gain: 1.0,
             volume_attenuation: 0.001,
             noise: if allow_noise {
-                Noise::Random { volume_steps: 1, pitch_multiplier: 1.0 }
+                Noise::Random {
+                    volume_steps: 1,
+                    noise_frequency: 223722.0,
+                    lfsr_length: 5,
+                }
             } else {
                 Noise::None
             },
@@ -81,12 +97,15 @@ impl Channel {
         };
         let rng = Self::get_rng(&specs);
         let rng_cache = Self::get_rng_cache(&specs);
-        Self {
+        let mut result = Self {
             specs,
             rng,
             rng_cache,
             ..Default::default()
-        }
+        };
+        result.set_note(4, Note::C, true);
+        result.set_volume(1.0);
+        result
     }
 
     /// Creates a new channel configured with a 32 byte wavetable
@@ -99,9 +118,10 @@ impl Channel {
         };
         let rng = Self::get_rng(&specs);
         let rng_cache = Self::get_rng_cache(&specs);
-        Self {
+        let mut result = Self {
             specs,
-            rng, rng_cache,
+            rng,
+            rng_cache,
             wavetable: (0..32)
                 .map(|i| {
                     let a = (i as f32 / 32.0) * TAU;
@@ -109,7 +129,10 @@ impl Channel {
                 })
                 .collect(),
             ..Default::default()
-        }
+        };
+        result.set_note(4, Note::C, true);
+        result.set_volume(1.0);
+        result
     }
 
     /// Allows sound generation on this channel.
@@ -175,22 +198,23 @@ impl Channel {
         self.specs = specs;
     }
 
-    fn get_rng_cache(specs:&ChipSpecs) -> Vec<f32> {
+    fn get_rng_cache(specs: &ChipSpecs) -> Vec<f32> {
         match specs.noise {
-           Noise::None => vec![],
-           Noise::Random { .. } => vec![],
-           Noise::Melodic { lfsr_length, volume_steps, ..  } => {
-               Rng::as_vec(lfsr_length as u32, 1, volume_steps)
-           },
-           Noise::WaveTable { .. } => vec![],
-       }
+            Noise::None => vec![],
+            Noise::Random { .. } => vec![],
+            Noise::Melodic {
+                lfsr_length,
+                volume_steps,
+                ..
+            } => Rng::as_vec(lfsr_length as u32, 1, volume_steps),
+            Noise::WaveTable { .. } => vec![],
+        }
     }
 
-    fn get_rng(specs:&ChipSpecs) -> Rng {
-         match specs.noise {
+    fn get_rng(specs: &ChipSpecs) -> Rng {
+        match specs.noise {
             Noise::None => Rng::new(8, 123),
-            Noise::Random { .. } => Rng::new(16, 123),
-            Noise::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
+            Noise::Random { lfsr_length, .. }| Noise::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
             Noise::WaveTable { .. } => Rng::new(8, 123),
         }
     }
@@ -212,7 +236,7 @@ impl Channel {
     /// A value between 0.0 and 1.0. It will be quantized, receive a fixed gain and
     /// mapped to an exponential curve, according to the ChipSpecs.
     pub fn set_volume(&mut self, volume: f32) {
-        self.volume = volume;
+        self.volume = volume.clamp(0.0, 16.0);
         self.calculate_multipliers();
     }
 
@@ -246,7 +270,7 @@ impl Channel {
         // cache current phase to re-apply at the end
         let previous_phase = (self.time % self.period as f64) / self.period as f64;
         // Calculate note frequency
-        let frequency = libm::pow(2.0, (note.into() - 69.0) / 12.0) * 440.0;
+        let frequency = note_to_frequency_f64(note.into());
         self.period = 1.0 / frequency;
         // If looping isn't required, ensure sample will be played from beginning.
         // Also, if channel is not playing it means we'll start playing a cycle
@@ -257,6 +281,18 @@ impl Channel {
             // Adjust time to ensure continuous change (instead of abrupt change)
             previous_phase * self.period
         };
+        // Noise
+        if let Noise::Random {
+            noise_frequency, ..
+        } = self.specs.noise
+        {
+            // Can't figure out why noise note progression is inverted!
+            // This fixes it for now...
+            let inverted_note = 120.0 - ((self.octave + 1) * 12 + self.note) as f32;
+            let inverted_pitch = note_to_frequency_f32(inverted_note);
+            // Calculate how many LFSR samples occur in one period of the note's pitch
+            self.lfsr_samples_per_cycle = noise_frequency / inverted_pitch;
+        }
     }
 
     #[inline(always)]
@@ -273,19 +309,27 @@ impl Channel {
             };
         }
 
-        // Pre calc noise
-        let rng_len = self.rng_cache.len();
-        let noise = match self.specs.noise {
-            Noise::None => { 0.0 },
+        // Generate Noise, will be mixed later
+        self.noise_output = match self.specs.noise {
+            Noise::None => 0.0,
             Noise::Random { volume_steps, .. } => {
-                quantize_full_range(self.rng.next_f32(), volume_steps)
-            },
+                let subsample_factor = self.lfsr_samples_per_cycle * delta_time as f32;
+                self.subsample_counter += subsample_factor;
+                // Check if it's time to sample the LFSR. If not, return cached value.
+                if self.subsample_counter >= 1.0 {
+                    self.subsample_counter = 0.0;
+                    quantize_full_range(self.rng.next_f32(), volume_steps)
+                } else {
+                    self.noise_output
+                }
+            }
             Noise::Melodic { pitch_multiplier, .. } => {
+                let rng_len = self.rng_cache.len();
                 let phase = ((self.time * pitch_multiplier as f64) % self.period) / self.period;
                 let index = (phase * rng_len as f64) as usize;
                 self.rng_cache[index]
-            },
-            Noise::WaveTable { .. } => { 0.0 },
+            }
+            Noise::WaveTable { .. } => 0.0,
         };
 
         // Determine sample index
@@ -317,15 +361,14 @@ impl Channel {
         // Overwrite or mix with noise
         if self.noise_on {
             if self.specs.prevent_negative_values {
-                self.output = (noise + 1.0) / 2.0;
+                self.output = (self.noise_output + 1.0) / 2.0;
             } else {
-                self.output = noise;
+                self.output = self.noise_output;
             }
         }
 
-        // Advance timer
+        // Advance timer and return output with multipliers applied
         self.time += delta_time;
-
         Sample {
             left: self.output * self.left_multiplier,
             right: self.output * self.right_multiplier,
@@ -351,6 +394,17 @@ impl Channel {
     }
 }
 
+#[inline(always)]
 fn wrap(value: i32, modulus: i32) -> i32 {
     ((value % modulus) + modulus) % modulus
+}
+
+#[inline(always)]
+fn note_to_frequency_f64(note: f64) -> f64 {
+    libm::pow(2.0, (note - 69.0) / 12.0) * 440.0
+}
+
+#[inline(always)]
+fn note_to_frequency_f32(note: f32) -> f32 {
+    libm::powf(2.0, (note - 69.0) / 12.0) * 440.0
 }

@@ -4,23 +4,22 @@ use soundchip::*;
 use std::{env::var_os, path::PathBuf};
 
 fn main() -> SdlResult {
+    let target_file: PathBuf = var_os("CARGO_MANIFEST_DIR").unwrap().into();
     // I have this path set to a ram disk on my machine,
     // since I'm saving the wave file for debugging purposes only.
-    let target_file: PathBuf = var_os("CARGO_MANIFEST_DIR").unwrap().into();
     let target_file = target_file.join("target/output.wav");
     println!("Saving wav file to: {:?}", target_file);
 
-    let ch = 0;
     let mut app = App::default()?;
+    let mut chip = SoundChip::new_msx(app.audio_mixrate() as u32);
     app.audio_start();
-
-    let mut chip = SoundChip::new(app.audio_mixrate() as u32);
 
     println!("Use up and down arrows to change octaves.");
     println!("Use left and right arrows to play different notes.");
     println!("Hit return to toggle noise/tone .");
     println!("Channels: {}", chip.channels().len());
 
+    let ch = 0;
     if let Some(channel) = chip.channel(ch) {
         channel.play();
         channel.set_noise(true);
@@ -44,7 +43,7 @@ fn main() -> SdlResult {
             // Notice how this envelope is quantized to 16 steps, per chip settings.
             let vol = channel.volume();
             let env_step = app.elapsed_time() as f32;
-            channel.set_volume((vol - env_step).clamp(0.0, 1.0));
+            channel.set_volume(vol - env_step);
             // Toggle noise
             if app.gamepad.is_just_pressed(Button::Start) {
                 if channel.is_noise(){
@@ -59,10 +58,12 @@ fn main() -> SdlResult {
             let octave = channel.octave();
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note, false);
+                channel.set_volume(1.0);
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
                 channel.set_note(octave - 1, note, false);
+                channel.set_volume(1.0);
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Right) {

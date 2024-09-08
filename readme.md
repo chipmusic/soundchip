@@ -1,5 +1,8 @@
 *Pardon the mess, this is a work-in-progress. API changes are still frequent.*
 
+***UPDATE***:
+Noise now works much better, for both "Melodic" and "Random" variants. But it's not very accurate when compared to real hardware. Will possibly need more parameters to limit the noise pitch, so this part of the API will still receive changes soon.
+
 Soundchip doesn't require the standard library, but it still requires allocation to use Vecs which means it may not be used in some strict, bare metal cases. This requirement may be removed in the future, making it more strictly "no_std".
 
 Notice that soundchip is *not* an emulator, it simply allows you to customize the sound properties of any sound channel to sound like an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the ChipSpecs struct looks like this:
@@ -14,10 +17,10 @@ ChipSpec {
     volume_exponent: 3.0,           // Non-linear volume envelope.
     volume_gain: 1.0,               // Some chips may need custom gain to sound more accurate.
     prevent_negative_values: true,  // Fits the generated wave into 0.0 to 1.0 values.
-    noise: Noise::Melodic {         // Noise settings.
+    noise: Noise::Random {          // Noise settings.
         lfsr_length: 5,             // How many bits the LFSR uses to generate numbers.
-        pitch_multiplier: 5.0,      // Pitches up the current channel pitch when playing noise.
         volume_steps: 1,            // 1 Means a square wave (1 bit noise).
+        noise_frequency: 223722.0,  // The internal noise generator frequency in Hz.
     },
 }
 ```

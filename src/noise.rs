@@ -6,7 +6,7 @@ pub enum Noise {
     /// No Noise
     None,
     /// Noise samples are completely random. WIP (Can't be pitched at all currently)
-    Random { volume_steps:u16, pitch_multiplier:f32 },
+    Random { lfsr_length:u16, volume_steps:u16, noise_frequency:f32 },
     /// Noise samples are determined by an LFSR (Linear Feedback Shift Register) and
     /// can noticeably be pitched up or down.
     Melodic { lfsr_length:u16, volume_steps:u16, pitch_multiplier:f32 },
