@@ -180,7 +180,7 @@ impl Channel {
            Noise::None => vec![],
            Noise::Random { .. } => vec![],
            Noise::Melodic { lfsr_length, volume_steps, ..  } => {
-               Rng::generate_cache_f32(lfsr_length as u32, 1, volume_steps)
+               Rng::as_vec(lfsr_length as u32, 1, volume_steps)
            },
            Noise::WaveTable { .. } => vec![],
        }

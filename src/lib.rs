@@ -196,11 +196,14 @@ impl<'a> Iterator for SoundChipIter<'a> {
 
 #[inline(always)]
 // Provides quantization in a value with range 0.0 to 1.0.
+// steps = 0 means the output is always zero, i.e. Pan if chip i mono.
+// steps of 1 or 2 means a square wave.
 pub(crate) fn quantize(value: f32, steps: u16) -> f32 {
     if steps == 0 { return 0.0 }
-    if steps == 1 {
-        return if value > 0.0 { 1.0 } else { -1.0 }
+    if steps < 3 {
+        return if value > 0.5 { 1.0 } else { -1.0 }
     }
+    // Quantize
     let size = 1.0 / (steps - 1) as f32;
     libm::roundf(value / size) * size
 }
@@ -208,12 +211,14 @@ pub(crate) fn quantize(value: f32, steps: u16) -> f32 {
 // Provides quantization in a value with range -1.0 to 1.0.
 pub(crate) fn quantize_full_range(value: f32, steps: u16) -> f32 {
     if steps == 0 { return 0.0 }
-    if steps == 1 {
+    if steps < 3 {
         return if value > 0.0 { 1.0 } else { -1.0 }
     }
-    // Map to normal range
+    // Map to (0.0 .. 1.0)
     let value = (value + 1.0) / 2.0;
+    // Quantize
     let size = 1.0 / (steps - 1) as f32;
     let result = libm::roundf(value / size) * size;
+    // Expand range
     (result * 2.0) - 1.0
 }

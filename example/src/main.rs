@@ -16,7 +16,8 @@ fn main() -> SdlResult {
 
     let mut chip = SoundChip::new(app.audio_mixrate() as u32);
 
-    println!("Use up and down arrows to play different notes.");
+    println!("Use up and down arrows to change octaves.");
+    println!("Use left and right arrows to play different notes.");
     println!("Hit return to toggle noise/tone .");
     println!("Channels: {}", chip.channels().len());
 
@@ -44,7 +45,7 @@ fn main() -> SdlResult {
             let vol = channel.volume();
             let env_step = app.elapsed_time() as f32;
             channel.set_volume((vol - env_step).clamp(0.0, 1.0));
-
+            // Toggle noise
             if app.gamepad.is_just_pressed(Button::Start) {
                 if channel.is_noise(){
                     channel.set_noise(false);
@@ -53,15 +54,24 @@ fn main() -> SdlResult {
                 }
                 println!("Channel noise: {}", channel.is_noise());
             }
-
+            // Input
             let note = channel.note();
+            let octave = channel.octave();
             if app.gamepad.is_just_pressed(Button::Up) {
-                channel.set_note(4, note + 1, false);
+                channel.set_note(octave + 1, note, false);
+                println!("Octave:{}", channel.octave());
+            }
+            if app.gamepad.is_just_pressed(Button::Down) {
+                channel.set_note(octave - 1, note, false);
+                println!("Octave:{}", channel.octave());
+            }
+            if app.gamepad.is_just_pressed(Button::Right) {
+                channel.set_note(octave, note + 1, false);
                 channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
-            if app.gamepad.is_just_pressed(Button::Down) {
-                channel.set_note(4, note - 1, false);
+            if app.gamepad.is_just_pressed(Button::Left) {
+                channel.set_note(octave, note - 1, false);
                 channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }

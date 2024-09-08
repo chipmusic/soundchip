@@ -43,7 +43,7 @@ impl Default for ChipSpecs {
             noise: Noise::Melodic {
                 lfsr_length: 5,
                 pitch_multiplier: 0.25,
-                volume_steps: 3,
+                volume_steps: 2,
             },
         }
     }
