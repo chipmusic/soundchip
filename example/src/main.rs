@@ -25,6 +25,18 @@ fn main() -> SdlResult {
         channel.set_noise(true);
     }
 
+    // Test
+    let specs = PitchSpecs {
+        multiplier: 2.0,
+        steps: Some(4096),
+        range: None,
+    };
+
+    for n in -5 ..= 15 {
+        let value = n as f32;
+        println!("{:.2} => {:.2}", value, specs.get(value));
+    }
+
     // Writing in mono for simplicity! Ensure no pan is set in the channel!
     let wav_spec = WavSpec {
         channels: 1,

@@ -1,4 +1,4 @@
-use crate::Noise;
+use crate::{Noise, PitchSpecs};
 
 /// Virtual sound chip's audio properties, which can be manipulated to mimic various
 /// kinds of audio hardware per channel.
@@ -11,7 +11,7 @@ pub struct ChipSpecs {
     pub volume_steps: u16,
     /// Quantizes the stereo pan state, i.e. 4 bit pan register = 16 steps.
     pub pan_steps: u16,
-    /// Number of intermediate steps between note pitches.
+    /// Number of intermediate steps between every note's pitch.
     pub pitch_steps: u16,
     /// Values above 0.0 cause the signal to go drift back to zero after channel is playing. Higher values
     /// will more quickly reset to zero.
@@ -42,8 +42,12 @@ impl Default for ChipSpecs {
             prevent_negative_values: false,
             noise: Noise::Melodic {
                 lfsr_length: 5,
-                pitch_multiplier: 0.25,
                 volume_steps: 2,
+                pitch: PitchSpecs {
+                    multiplier: 1.0,
+                    steps: Some(128),
+                    range: Some(16.35 .. 7902.13),
+                }
             },
         }
     }

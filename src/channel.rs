@@ -1,4 +1,4 @@
-use crate::{quantize, quantize_full_range, ChipError, ChipSpecs, Noise, Note, Rng, Sample};
+use crate::{quantize_steps, ChipError, ChipSpecs, Noise, Note, PitchSpecs, Rng, Sample};
 use alloc::vec::Vec;
 use core::f32::consts::TAU;
 
@@ -30,7 +30,7 @@ pub struct Channel {
     rng: Rng,
     rng_cache: Vec<f32>,
     subsample_counter: f32,
-    lfsr_samples_per_cycle: f32,
+    lfsr_frequency: f32,
     noise_output: f32,
 }
 
@@ -64,7 +64,7 @@ impl Default for Channel {
             last_sample_index: 0,
             last_sample_value: 0.0,
             subsample_counter: 0.0,
-            lfsr_samples_per_cycle: 0.0,
+            lfsr_frequency: 0.0,
             noise_output: 0.0,
             specs,
             rng,
@@ -85,9 +85,16 @@ impl Channel {
             volume_attenuation: 0.001,
             noise: if allow_noise {
                 Noise::Random {
+                    lfsr_length: 16,
                     volume_steps: 1,
                     noise_frequency: 223722.0,
-                    lfsr_length: 5,
+                    pitch: PitchSpecs {
+                        multiplier: 32.0,
+                        steps: Some(4096),
+                        // range: Some(223722.0 / 32.0 .. 223722.0),
+                        // range: Some(220.0 .. 1396.0)
+                        ..Default::default()
+                    },
                 }
             } else {
                 Noise::None
@@ -214,7 +221,9 @@ impl Channel {
     fn get_rng(specs: &ChipSpecs) -> Rng {
         match specs.noise {
             Noise::None => Rng::new(8, 123),
-            Noise::Random { lfsr_length, .. }| Noise::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
+            Noise::Random { lfsr_length, .. } | Noise::Melodic { lfsr_length, .. } => {
+                Rng::new(lfsr_length as u32, 1)
+            }
             Noise::WaveTable { .. } => Rng::new(8, 123),
         }
     }
@@ -283,15 +292,24 @@ impl Channel {
         };
         // Noise
         if let Noise::Random {
-            noise_frequency, ..
-        } = self.specs.noise
+            noise_frequency,
+            pitch,
+            ..
+        } = &self.specs.noise
         {
             // Can't figure out why noise note progression is inverted!
             // This fixes it for now...
+            // Also, I'm bumping the octave up a little since very low pitch
+            // noise is almost inaudible.
             let inverted_note = 120.0 - ((self.octave + 1) * 12 + self.note) as f32;
+
             let inverted_pitch = note_to_frequency_f32(inverted_note);
+            // println!("before:{}", inverted_pitch);
+
+            // let inverted_pitch = pitch.get(inverted_pitch);
+            // println!("after:{}", inverted_pitch);
             // Calculate how many LFSR samples occur in one period of the note's pitch
-            self.lfsr_samples_per_cycle = noise_frequency / inverted_pitch;
+            self.lfsr_frequency = noise_frequency / inverted_pitch;
         }
     }
 
@@ -310,29 +328,29 @@ impl Channel {
         }
 
         // Generate Noise, will be mixed later
-        self.noise_output = match self.specs.noise {
+        self.noise_output = match &self.specs.noise {
             Noise::None => 0.0,
             Noise::Random { volume_steps, .. } => {
-                let subsample_factor = self.lfsr_samples_per_cycle * delta_time as f32;
-                self.subsample_counter += subsample_factor;
+                let subsample_position = self.lfsr_frequency * delta_time as f32;
+                self.subsample_counter += subsample_position;
                 // Check if it's time to sample the LFSR. If not, return cached value.
                 if self.subsample_counter >= 1.0 {
                     self.subsample_counter = 0.0;
-                    quantize_full_range(self.rng.next_f32(), volume_steps)
+                    quantize_steps(self.rng.next_f32(), *volume_steps)
                 } else {
                     self.noise_output
                 }
             }
-            Noise::Melodic { pitch_multiplier, .. } => {
+            Noise::Melodic { pitch, .. } => {
                 let rng_len = self.rng_cache.len();
-                let phase = ((self.time * pitch_multiplier as f64) % self.period) / self.period;
+                let phase = ((self.time * pitch.multiplier as f64) % self.period) / self.period;
                 let index = (phase * rng_len as f64) as usize;
                 self.rng_cache[index]
             }
             Noise::WaveTable { .. } => 0.0,
         };
 
-        // Determine sample index
+        // Determine wavetable index
         let len = self.wavetable.len();
         let index = if self.loop_sample {
             let phase = (self.time % self.period) / self.period;
@@ -342,11 +360,11 @@ impl Channel {
             ((phase * len as f64) as usize).clamp(0, len - 1)
         };
 
-        // Obtain sample value and set it to output
+        // Obtain wavetable sample and set it to output
         if index != self.last_sample_index {
             self.last_sample_index = index;
             // TODO: Optional quantization!
-            let value = quantize_full_range(self.wavetable[index] as f32, self.specs.sample_steps);
+            let value = quantize_steps(self.wavetable[index] as f32, self.specs.sample_steps);
             // Avoids resetting attenuation if value hasn't changed
             if value != self.last_sample_value {
                 if self.specs.prevent_negative_values {
@@ -375,7 +393,6 @@ impl Channel {
         }
     }
 
-    #[inline(always)]
     // Must be called after setting volume or pan.
     // Used to pre-calculate as many values as possible instead of doing it per sample, since
     // this function is called much less frequently (by orders of magnitude)
@@ -385,10 +402,10 @@ impl Channel {
         // "powf" only gives the intended result in the 0 to 1 range, so we only apply
         // the chip's gain after the pow function.
         let volume = libm::powf(
-            quantize(self.volume, self.specs.volume_steps),
+            quantize_steps(self.volume, self.specs.volume_steps),
             self.specs.volume_exponent,
         ) * self.specs.volume_gain;
-        let pan = quantize(self.pan, self.specs.pan_steps);
+        let pan = quantize_steps(self.pan, self.specs.pan_steps);
         self.left_multiplier = ((pan - 1.0) / -2.0) * volume;
         self.right_multiplier = ((pan + 1.0) / 2.0) * volume;
     }

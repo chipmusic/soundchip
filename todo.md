@@ -1,12 +1,13 @@
 # TO DO:
 
-[ ] readme.md
-
 [ ] Additional presets: NES, PCEngine
 
-[x] Output to wav file for debugging purposes (in example, not in library).
+[x] readme.md
 
 [.] Chip specs processing:
   [x] Quantization
-  [x] Non linear output (f32.powf(2.5)) for channel volume, samples should be linear
+  [x] Non linear output (f32.powf(3.0)) for channel volume, but samples should stay linear
   [ ] Optional quantization, based on ChipSpecs
+  [ ] Specs should be all that is needed to create desired chip, so they must specify wavetable data
+
+[x] Output to wav file for debugging purposes (in example, not in library).
