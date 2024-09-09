@@ -27,9 +27,9 @@ fn main() -> SdlResult {
 
     // Test
     let specs = PitchSpecs {
-        multiplier: 2.0,
-        steps: Some(4096),
-        range: None,
+        multiplier: 1.0,
+        steps: Some(32),
+        range: Some(2.5 .. 7.5),
     };
 
     for n in -5 ..= 15 {

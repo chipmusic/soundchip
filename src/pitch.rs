@@ -37,10 +37,10 @@ impl PitchSpecs {
             if let Some(steps) = self.steps {
                 let range = range.end - range.start;
                 let size = range / steps as f32;
-                value = quantize(value * self.multiplier, size);
+                value = quantize(value, size);
                 // println!("quantizing to {size}");
             }
         }
-        value
+        value * self.multiplier
     }
 }

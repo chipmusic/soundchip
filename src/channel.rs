@@ -89,7 +89,7 @@ impl Channel {
                     volume_steps: 1,
                     noise_frequency: 223722.0,
                     pitch: PitchSpecs {
-                        multiplier: 32.0,
+                        multiplier: 1.0,
                         steps: Some(4096),
                         // range: Some(223722.0 / 32.0 .. 223722.0),
                         // range: Some(220.0 .. 1396.0)
