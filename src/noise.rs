@@ -16,9 +16,7 @@ pub enum Noise {
     /// LFSR Samples running at a fixed, usually very high frequency, but new samples
     /// can be skipped (and the current sample sustained) to pitch the resulting noise down.
     Random {
-        lfsr_length: u16,
         volume_steps: u16,
-        noise_frequency: f32,
         pitch: PitchSpecs
     },
     /// Not implemented yet.

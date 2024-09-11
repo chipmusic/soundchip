@@ -1,4 +1,4 @@
-use crate::quantize_steps;
+use crate::math::*;
 
 pub struct Rng {
     bit_count: u32,
@@ -21,7 +21,6 @@ impl Rng {
         } else {
             initial_state & mask
         };
-        // println!("New LFSR with length: {}, mask: {:0b}", bit_count, mask);
         Self {
             state,
             bit_count,
@@ -37,7 +36,7 @@ impl Rng {
         let mut rng = Self::new(bit_count, initial_state);
         let max = libm::powf(2.0, bit_count as f32) as usize - 1;
         (0..max).map(|_|{
-            quantize_steps(rng.next_f32(), volume_steps)
+            quantize_steps_f32(rng.next_f32(), volume_steps)
         }).collect()
     }
 

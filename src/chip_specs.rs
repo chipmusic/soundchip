@@ -44,9 +44,9 @@ impl Default for ChipSpecs {
                 lfsr_length: 5,
                 volume_steps: 2,
                 pitch: PitchSpecs {
-                    multiplier: 1.0,
-                    steps: Some(128),
-                    range: Some(16.35 .. 7902.13),
+                    multiplier: 5.0,
+                    steps: None,
+                    range: None,
                 }
             },
         }
