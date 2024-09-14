@@ -11,7 +11,7 @@ fn main() -> SdlResult {
     println!("Saving wav file to: {:?}", target_file);
 
     let mut app = App::default()?;
-    let mut chip = SoundChip::new(app.audio_mixrate() as u32);
+    let mut chip = SoundChip::new_msx(app.audio_mixrate() as u32);
     app.audio_start();
 
     println!("Use up and down arrows to change octaves.");

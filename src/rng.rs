@@ -8,7 +8,7 @@ pub struct Rng {
     f32_max: f32,
 }
 
-const NON_ZERO: u32 = 0b11100010101011110110101010101011;
+const DEFAULT_VALUE: u32 = 0b01100010101011110110101010101011;
 
 /// A simple, "old school" LFSR with configurable bit count.
 impl Rng {
@@ -17,7 +17,7 @@ impl Rng {
         let bit_count = bit_count.clamp(3, 32);
         let mask = ((1u64 << bit_count) - 1) as u32;
         let state = if (initial_state & mask) == 0 {
-            NON_ZERO & mask
+            DEFAULT_VALUE & mask
         } else {
             initial_state & mask
         };
@@ -72,7 +72,7 @@ impl Rng {
         self.f32_max = libm::powf(2.0, bit_count as f32);
         // Apply the new initial state
         self.state = if (initial_state & self.mask) == 0 {
-            NON_ZERO & self.mask
+            DEFAULT_VALUE & self.mask
         } else {
             initial_state & self.mask
         };

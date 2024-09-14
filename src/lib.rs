@@ -19,14 +19,8 @@ pub use note::*;
 mod error;
 pub use error::*;
 
-mod chip_specs;
-pub use chip_specs::*;
-
-mod noise;
-pub use noise::*;
-
-mod pitch;
-pub use pitch::*;
+mod specs;
+pub use specs::*;
 
 pub mod rng;
 pub(crate) use rng::*;

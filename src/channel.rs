@@ -26,21 +26,19 @@ pub struct Channel {
     last_sample_index: usize,
     // Gets populated automatically with inverted and clamped value from chip specs volume_attenuation
     output_attenuation: f32,
-    // Noise
+    // NoiseSpecs
     rng: Rng,
     noise_time: f64,
     noise_period: f64,
     noise_output: f32,
 }
 
-impl Default for Channel {
-    fn default() -> Self {
-        println!("New default channel");
-        let specs = ChipSpecs::default();
+impl From<ChipSpecs> for Channel {
+    fn from(specs: ChipSpecs) -> Self {
+        println!("New channel from specs {:?}", specs);
         let rng = Self::get_rng(&specs);
         let mut result = Self {
-            // Default sine wave with 16 samples.
-            wavetable: (0..16)
+            wavetable: (0..specs.wavetable.sample_count)
                 .map(|i| {
                     let a = (i as f32 / 16.0) * TAU;
                     libm::sinf(a)
@@ -73,66 +71,35 @@ impl Default for Channel {
     }
 }
 
+impl Default for Channel {
+    fn default() -> Self {
+        Self::from(ChipSpecs::default())
+    }
+}
+
 impl Channel {
     /// Creates a new channel configured with a square wave.
     pub fn new_psg(allow_noise: bool) -> Self {
         let specs = ChipSpecs {
-            sample_steps: 1,
-            volume_gain: 1.0,
-            volume_attenuation: 0.001,
-            noise: if allow_noise {
-                Noise::Random {
-                    volume_steps: 1,
-                    pitch: PitchSpecs {
-                        multiplier: 1.0,
-                        steps: Some(4096),
-                        range: Some(2000.0 .. 12000.0),
-                    },
-                }
-            } else {
-                Noise::None
-            },
-            prevent_negative_values: true,
-            ..Default::default()
+            wavetable: WavetableSpecs::psg(),
+            pan: PanSpecs::psg(),
+            pitch: PitchSpecs::psg(),
+            volume: VolumeSpecs::psg(),
+            noise: NoiseSpecs::psg(allow_noise),
         };
-        let rng = Self::get_rng(&specs);
-        // let rng_cache = Self::get_rng_cache(&specs);
-        let mut result = Self {
-            specs,
-            rng,
-            // rng_cache,
-            ..Default::default()
-        };
-        result.set_note(4, Note::C, true);
-        result.set_volume(1.0);
-        result
+        Self::from(specs)
     }
 
     /// Creates a new channel configured with a 32 byte wavetable
     pub fn new_scc() -> Self {
         let specs = ChipSpecs {
-            sample_steps: 256,
-            noise: Noise::None,
-            volume_gain: 1.0,
-            ..Default::default()
+            wavetable: WavetableSpecs::scc(),
+            pan: PanSpecs::scc(),
+            pitch: PitchSpecs::scc(),
+            volume: VolumeSpecs::scc(),
+            noise: NoiseSpecs::None,
         };
-        let rng = Self::get_rng(&specs);
-        // let rng_cache = Self::get_rng_cache(&specs);
-        let mut result = Self {
-            specs,
-            rng,
-            // rng_cache,
-            wavetable: (0..32)
-                .map(|i| {
-                    let a = (i as f32 / 32.0) * TAU;
-                    libm::sinf(a)
-                })
-                .collect(),
-            ..Default::default()
-        };
-        result.set_note(4, Note::C, true);
-        result.set_volume(1.0);
-        result
+        Self::from(specs)
     }
 
     /// Allows sound generation on this channel.
@@ -227,7 +194,7 @@ impl Channel {
 
     /// Switches channel between tone and noise generation, if specs allow noise.
     pub fn set_noise(&mut self, state: bool) {
-        if self.specs.noise != Noise::None {
+        if self.specs.noise != NoiseSpecs::None {
             self.noise_on = state;
         }
     }
@@ -260,9 +227,9 @@ impl Channel {
             // Adjust time to ensure continuous change (instead of abrupt change)
             previous_phase * self.period
         };
-        // Noise
+        // NoiseSpecs
         match &self.specs.noise {
-            Noise::Random { pitch, .. } | Noise::Melodic { pitch, .. } => {
+            NoiseSpecs::Random { pitch, .. } | NoiseSpecs::Melodic { pitch, .. } => {
                 if let Some(steps) = &pitch.steps {
                     let range = if let Some(range) = &pitch.range {
                         range.clone()
@@ -271,9 +238,8 @@ impl Channel {
                     };
                     let min = 1.0 / range.start as f64;
                     let max = 1.0 / range.end as f64;
-                    self.noise_period =
-                        quantize_steps_f64(self.period / pitch.multiplier as f64, *steps)
-                            .clamp(max, min); // inverted, since it's a period not frequency
+                    let freq = quantize_steps_f64(self.period, *steps).clamp(max, min); // inverted, since it's a period not frequency
+                    self.noise_period = freq / pitch.multiplier as f64;
                 } else {
                     self.noise_period = self.period / pitch.multiplier as f64;
                 }
@@ -296,10 +262,10 @@ impl Channel {
             };
         }
 
-        // Generate Noise, will be mixed later
+        // Generate NoiseSpecs, will be mixed later
         self.noise_output = match &self.specs.noise {
-            Noise::None => 0.0,
-            Noise::Random { volume_steps, .. } | Noise::Melodic { volume_steps, .. } => {
+            NoiseSpecs::None => 0.0,
+            NoiseSpecs::Random { volume_steps, .. } | NoiseSpecs::Melodic { volume_steps, .. } => {
                 if self.noise_time >= self.noise_period {
                     self.noise_time = 0.0;
                     quantize_steps_f32(self.rng.next_f32(), *volume_steps)
@@ -307,7 +273,7 @@ impl Channel {
                     self.noise_output
                 }
             }
-            Noise::WaveTable { .. } => 0.0,
+            NoiseSpecs::WaveTable { .. } => 0.0,
         };
 
         // Determine wavetable index
@@ -324,7 +290,12 @@ impl Channel {
         if index != self.last_sample_index {
             self.last_sample_index = index;
             // TODO: Optional quantization!
-            let value = quantize_steps_f32(self.wavetable[index] as f32, self.specs.sample_steps);
+            let value = if let Some(steps) = self.specs.wavetable.steps {
+                quantize_steps_f32(self.wavetable[index] as f32, steps)
+            } else {
+                self.wavetable[index] as f32
+            };
+
             // Avoids resetting attenuation if value hasn't changed
             if value != self.last_sample_value {
                 self.output = value;
@@ -341,7 +312,7 @@ impl Channel {
             self.output = self.noise_output;
         }
 
-        let mono = if self.specs.prevent_negative_values {
+        let mono = if self.specs.volume.prevent_negative_values {
             (self.output + 1.0) / 2.0
         } else {
             self.output
@@ -359,22 +330,28 @@ impl Channel {
     // this function is called much less frequently (by orders of magnitude)
     pub(crate) fn calculate_multipliers(&mut self) {
         // Pre calculate this so we don't do it on every sample
-        self.output_attenuation = 1.0 - self.specs.volume_attenuation.clamp(0.0, 1.0);
+        self.output_attenuation = 1.0 - self.specs.volume.attenuation.clamp(0.0, 1.0);
         // "powf" only gives the intended result in the 0 to 1 range, so we only apply
         // the chip's gain after the pow function.
-        let volume = libm::powf(
-            quantize_steps_f32(self.volume, self.specs.volume_steps),
-            self.specs.volume_exponent,
-        ) * self.specs.volume_gain;
-        let pan = quantize_steps_f32(self.pan, self.specs.pan_steps);
+        let level = if let Some(steps) = self.specs.volume.steps {
+            quantize_steps_f32(self.volume, steps)
+        } else {
+            self.volume()
+        };
+        let volume = libm::powf(level, self.specs.volume.exponent) * self.specs.volume.gain;
+        let pan = if let Some(pan_steps) = self.specs.pan.steps {
+            quantize_steps_f32(self.pan, pan_steps)
+        } else {
+            0.0
+        };
         self.left_multiplier = ((pan - 1.0) / -2.0) * volume;
         self.right_multiplier = ((pan + 1.0) / 2.0) * volume;
     }
 
-    fn get_rng(specs: &ChipSpecs) -> Rng {
+    fn get_rng(specs:&ChipSpecs) -> Rng {
         match specs.noise {
-            Noise::None | Noise::Random { .. } | Noise::WaveTable { .. } => Rng::new(16, 1),
-            Noise::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
+            NoiseSpecs::None | NoiseSpecs::Random { .. } | NoiseSpecs::WaveTable { .. } => Rng::new(16, 1),
+            NoiseSpecs::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
         }
     }
 }

@@ -26,6 +26,22 @@ impl Default for PitchSpecs {
 
 impl PitchSpecs {
 
+    pub fn psg() -> Self {
+        Self {
+            multiplier: 1.0,
+            range: Some(16.35 .. 16744.04),
+            steps: Some(4096),
+        }
+    }
+
+    pub fn scc() -> Self {
+        Self {
+            multiplier: 1.0,
+            range: Some(16.35 .. 16744.04),
+            steps: Some(4096),
+        }
+    }
+
     pub fn get(&self, value:f32) -> f32 {
         // println!("get from {:?}", self);
         let mut value = value;
