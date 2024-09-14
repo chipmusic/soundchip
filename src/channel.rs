@@ -18,8 +18,7 @@ pub struct Channel {
     output: f32,
     volume: f32,
     pan: f32,
-    octave: i32,
-    note: i32,
+    midi_note: f32,
     left_multiplier: f32,
     right_multiplier: f32,
     last_sample_value: f32,
@@ -35,12 +34,14 @@ pub struct Channel {
 
 impl From<ChipSpecs> for Channel {
     fn from(specs: ChipSpecs) -> Self {
-        println!("New channel from specs {:?}", specs);
+        // println!("New channel from specs {:?}", specs);
         let rng = Self::get_rng(&specs);
+        let sample_count = specs.wavetable.sample_count;
         let mut result = Self {
-            wavetable: (0..specs.wavetable.sample_count)
+            // Default sine wave
+            wavetable: (0..sample_count)
                 .map(|i| {
-                    let a = (i as f32 / 16.0) * TAU;
+                    let a = (i as f32 / sample_count as f32) * TAU;
                     libm::sinf(a)
                 })
                 .collect(),
@@ -49,8 +50,7 @@ impl From<ChipSpecs> for Channel {
             volume: 1.0,
             pan: 0.0,
             loop_sample: true,
-            octave: 4,
-            note: 60,
+            midi_note: 60.0,
             period: 1.0 / FREQ_C4,
             time: 0.0,
             left_multiplier: 0.5,
@@ -130,12 +130,12 @@ impl Channel {
 
     /// Current octave.
     pub fn octave(&self) -> i32 {
-        self.octave
+        libm::floorf(self.midi_note / 12.0) as i32 - 1
     }
 
     /// Current midi note (C4 = 60).
     pub fn note(&self) -> i32 {
-        self.note
+        libm::floorf(self.midi_note) as i32 % 12
     }
 
     /// Current frequency.
@@ -202,21 +202,20 @@ impl Channel {
     /// Adjusts internal pitch values to correspond to octave and note ( where C = 0, C# = 1, etc.).
     /// "reset_time" forces the waveform to start from position 0, ignoring previous phase.
     pub fn set_note(&mut self, octave: impl Into<i32>, note: impl Into<i32>, reset_time: bool) {
-        // Handle negative values and values beyond range
-        self.octave = wrap(octave.into(), 10);
-        self.note = wrap(note.into(), 12);
-        // MIDI note number, where C4 is 60
-        let midi_note_number = (self.octave + 1) * 12 + self.note;
-        self.set_midi_note(midi_note_number, reset_time);
+        let midi_note = get_midi_note(octave, note) as f64;
+        self.set_midi_note(midi_note, reset_time);
     }
+
 
     /// Same as set_note, but the notes are an f32 value which allows "in-between" notes, or pitch sliding,
     /// and uses MIDI codes instead of octave and note, i.e. C4 is MIDI code 60.
     pub fn set_midi_note(&mut self, note: impl Into<f64>, reset_time: bool) {
+        let note:f64 = note.into();
+        self.midi_note = note as f32;
         // cache current phase to re-apply at the end
         let previous_phase = (self.time % self.period as f64) / self.period as f64;
         // Calculate note frequency
-        let frequency = note_to_frequency_f64(note.into());
+        let frequency = note_to_frequency_f64(note);
         self.period = 1.0 / frequency;
         // If looping isn't required, ensure sample will be played from beginning.
         // Also, if channel is not playing it means we'll start playing a cycle
@@ -231,15 +230,16 @@ impl Channel {
         match &self.specs.noise {
             NoiseSpecs::Random { pitch, .. } | NoiseSpecs::Melodic { pitch, .. } => {
                 if let Some(steps) = &pitch.steps {
-                    let range = if let Some(range) = &pitch.range {
-                        range.clone()
+                    let freq_range = if let Some(range) = &pitch.range {
+                        *range.start() as f64..= *range.end() as f64
                     } else {
-                        16.35..16744.0
+                        // C0 to C10 in "scientific pitch"", roughly the human hearing range
+                        16.0..=16384.0
                     };
-                    let min = 1.0 / range.start as f64;
-                    let max = 1.0 / range.end as f64;
-                    let freq = quantize_steps_f64(self.period, *steps).clamp(max, min); // inverted, since it's a period not frequency
-                    self.noise_period = freq / pitch.multiplier as f64;
+                    let tone_freq = 1.0 / self.period;
+                    let noise_freq = quantize_range_f64(tone_freq, *steps, Some(freq_range.clone()));
+                    let noise_period = 1.0 / noise_freq;
+                    self.noise_period = noise_period / pitch.multiplier as f64;
                 } else {
                     self.noise_period = self.period / pitch.multiplier as f64;
                 }
@@ -262,13 +262,13 @@ impl Channel {
             };
         }
 
-        // Generate NoiseSpecs, will be mixed later
+        // Generate noise level, will be mixed later
         self.noise_output = match &self.specs.noise {
             NoiseSpecs::None => 0.0,
             NoiseSpecs::Random { volume_steps, .. } | NoiseSpecs::Melodic { volume_steps, .. } => {
                 if self.noise_time >= self.noise_period {
                     self.noise_time = 0.0;
-                    quantize_steps_f32(self.rng.next_f32(), *volume_steps)
+                    quantize_range_f32(self.rng.next_f32(), *volume_steps, Some(0.0 ..= 1.0))
                 } else {
                     self.noise_output
                 }
@@ -291,7 +291,7 @@ impl Channel {
             self.last_sample_index = index;
             // TODO: Optional quantization!
             let value = if let Some(steps) = self.specs.wavetable.steps {
-                quantize_steps_f32(self.wavetable[index] as f32, steps)
+                quantize_range_f32(self.wavetable[index] as f32, steps, Some(-1.0 ..= 1.0))
             } else {
                 self.wavetable[index] as f32
             };
@@ -334,13 +334,13 @@ impl Channel {
         // "powf" only gives the intended result in the 0 to 1 range, so we only apply
         // the chip's gain after the pow function.
         let level = if let Some(steps) = self.specs.volume.steps {
-            quantize_steps_f32(self.volume, steps)
+            quantize_range_f32(self.volume, steps, Some(0.0 ..= 1.0))
         } else {
             self.volume()
         };
         let volume = libm::powf(level, self.specs.volume.exponent) * self.specs.volume.gain;
         let pan = if let Some(pan_steps) = self.specs.pan.steps {
-            quantize_steps_f32(self.pan, pan_steps)
+            quantize_range_f32(self.pan, pan_steps, Some(-1.0 ..= 1.0))
         } else {
             0.0
         };
@@ -348,22 +348,25 @@ impl Channel {
         self.right_multiplier = ((pan + 1.0) / 2.0) * volume;
     }
 
-    fn get_rng(specs:&ChipSpecs) -> Rng {
+    fn get_rng(specs: &ChipSpecs) -> Rng {
         match specs.noise {
-            NoiseSpecs::None | NoiseSpecs::Random { .. } | NoiseSpecs::WaveTable { .. } => Rng::new(16, 1),
+            NoiseSpecs::None | NoiseSpecs::Random { .. } | NoiseSpecs::WaveTable { .. } => {
+                Rng::new(16, 1)
+            }
             NoiseSpecs::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
         }
     }
 }
 
+
 #[inline(always)]
-fn wrap(value: i32, modulus: i32) -> i32 {
-    ((value % modulus) + modulus) % modulus
+pub(crate) fn note_to_frequency_f64(note: f64) -> f64 {
+    libm::pow(2.0, (note - 69.0) / 12.0) * 440.0
 }
 
 #[inline(always)]
-fn note_to_frequency_f64(note: f64) -> f64 {
-    libm::pow(2.0, (note - 69.0) / 12.0) * 440.0
+pub(crate) fn note_to_frequency_f32(note: f32) -> f32 {
+    libm::powf(2.0, (note - 69.0) / 12.0) * 440.0
 }
 
 // #[inline(always)]

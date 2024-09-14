@@ -2,10 +2,7 @@
 //! replicate old audio chips like PSGs and simple wave table chips.
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/readme.md"))]
 #![warn(clippy::std_instead_of_core, clippy::std_instead_of_alloc)]
-// #![no_std]
-
-mod math;
-pub use math::*;
+#![no_std]
 
 mod channel;
 pub use channel::*;
@@ -25,8 +22,11 @@ pub use specs::*;
 pub mod rng;
 pub(crate) use rng::*;
 
+pub mod math;
+pub(crate) use math::*;
+
 extern crate alloc;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 // use smooth_buffer::SmoothBuffer;
 
 /// Contains multiple sound channels, and can render and mix them all at once.
@@ -60,7 +60,7 @@ impl SoundChip {
     /// Creates a SoundChip pre-configured to generate 4 channels, each with a 16x16 wavetable and capable
     /// of noise.
     pub fn new(sample_rate: u32) -> Self {
-        println!("New default sound chip");
+        // println!("New default sound chip");
         let channels = vec![ Channel::default() ];
         Self {
             sample_rate,
@@ -72,7 +72,7 @@ impl SoundChip {
 
     /// Creates a SoundChip configured to replicate an AY-3-8910 sound chip with 3 square wave channels.
     pub fn new_msx(sample_rate: u32) -> Self {
-        println!("New MSX sound chip");
+        // println!("New MSX sound chip");
         Self {
             sample_rate,
             channels: (0..3)
@@ -89,7 +89,7 @@ impl SoundChip {
     /// Creates a SoundChip configured to replicate an AY-3-8910 sound chip with 3 square wave channels plus
     /// an SCC chip with 5 wavetable channels (32 byte samples).
     pub fn new_msx_scc(sample_rate: u32) -> Self {
-        println!("New MSX-SCC sound chip");
+        // println!("New MSX-SCC sound chip");
         Self {
             sample_rate,
             channels: (0..8)
@@ -172,7 +172,7 @@ impl SoundChip {
     }
 }
 
-/// Iterates a specified number of samples. Use [SoundChip::iter()] to obtain this iterator.
+/// Iterates a specified number of samples. Use [SoundChip::iter()] to obtain this.
 pub struct SoundChipIter<'a> {
     chip: &'a mut SoundChip,
     head: usize,
@@ -189,4 +189,19 @@ impl<'a> Iterator for SoundChipIter<'a> {
         }
         None
     }
+}
+
+#[inline(always)]
+fn wrap(value: i32, modulus: i32) -> i32 {
+    ((value % modulus) + modulus) % modulus
+}
+
+#[inline(always)]
+/// Returns the MIDI note value given an octave (zero to 10) and a note (zero to 11).
+pub fn get_midi_note(octave: impl Into<i32>, note: impl Into<i32>) -> i32 {
+    // Handle negative values and values beyond range
+    let octave = wrap(octave.into(), 10);
+    let note = wrap(note.into(), 12);
+    // MIDI note number, where C4 is 60
+    ((octave + 1) * 12) + note
 }

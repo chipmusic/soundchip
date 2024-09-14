@@ -1,5 +1,3 @@
-use crate::quantize_steps_f32;
-
 /// The processing specs for pan values.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PanSpecs {
@@ -10,25 +8,17 @@ pub struct PanSpecs {
 impl Default for PanSpecs {
     fn default() -> Self {
         Self {
-            steps: Some(4096),
+            steps: Some(16),
         }
     }
 }
 
 impl PanSpecs {
-
     pub fn psg() -> Self {
-        Self { steps: Some(16) }
+        Self { steps: Some(0) }
     }
 
     pub fn scc() -> Self {
         Self { steps: Some(16) }
-    }
-
-    pub fn get(&self, value:f32) -> f32 {
-        match self.steps {
-            Some(steps) => quantize_steps_f32(value, steps),
-            None => value,
-        }
     }
 }

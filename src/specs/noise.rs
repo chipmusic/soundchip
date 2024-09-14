@@ -1,6 +1,8 @@
-use crate::PitchSpecs;
+use crate::{Note, PitchSpecs};
 
-/// Noise profile.  Controls wether or not this channel can produce noise.
+/// Noise profile.  Controls whether this channel can produce noise.
+/// The frequency multiplier in the "pitch" struct is applied *after* quantizing the pitch,
+/// allowing you to map a typical MIDI range like C3 to C5 to a much higher frequency
 #[derive(Debug, Clone, PartialEq)]
 pub enum NoiseSpecs {
     /// No Noise
@@ -24,6 +26,7 @@ pub enum NoiseSpecs {
 }
 
 impl Default for NoiseSpecs {
+    /// Returns a TIA-like, metalic soundng noise profile.
     fn default() -> Self {
         Self::Melodic {
             lfsr_length: 5,
@@ -38,14 +41,17 @@ impl Default for NoiseSpecs {
 }
 
 impl NoiseSpecs {
+    /// Returns a PSG-like noise profile with 32 valid pitch values between C3 and G#5.
     pub fn psg(allow_noise:bool) -> Self {
+        let min = Note::C.frequency(3);
+        let max = Note::GSharp.frequency(5);
         if allow_noise {
             Self::Random {
                 volume_steps: 1,
                 pitch: PitchSpecs {
-                    multiplier: 5.0,
+                    multiplier: 55.0,
                     steps: Some(32),
-                    range: Some(130.81 .. 783.99),
+                    range: Some(min ..= max),
                 },
             }
         } else {

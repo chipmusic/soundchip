@@ -20,7 +20,7 @@ impl Default for VolumeSpecs {
     fn default() -> Self {
         Self {
             steps: Some(16),
-            attenuation: 0.0017,
+            attenuation: 0.001,
             exponent: 3.0,
             gain: 1.0,
             prevent_negative_values: false,
@@ -48,22 +48,4 @@ impl VolumeSpecs {
             prevent_negative_values: false,
         }
     }
-
-    //     pub fn get(&self, value:f32) -> f32 {
-    //         // println!("get from {:?}", self);
-    //         let mut value = value;
-    //         // Optional Apply max range
-    //         if let Some(range) = &self.range {
-    //             value = value.clamp(range.start, range.end);
-    //             // println!("clamping to {:?}", range);
-    //             // Optional Quantize
-    //             if let Some(steps) = self.steps {
-    //                 let range = range.end - range.start;
-    //                 let size = range / steps as f32;
-    //                 value = quantize(value, size);
-    //                 // println!("quantizing to {size}");
-    //             }
-    //         }
-    //         value * self.multiplier
-    //     }
 }

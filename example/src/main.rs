@@ -1,7 +1,7 @@
-use hound::{WavSpec, WavWriter};
-use mini_sdl::*;
-use soundchip::*;
 use std::{env::var_os, path::PathBuf};
+use hound::{WavSpec, WavWriter};
+use soundchip::*;
+use mini_sdl::*;
 
 fn main() -> SdlResult {
     let target_file: PathBuf = var_os("CARGO_MANIFEST_DIR").unwrap().into();
@@ -11,7 +11,7 @@ fn main() -> SdlResult {
     println!("Saving wav file to: {:?}", target_file);
 
     let mut app = App::default()?;
-    let mut chip = SoundChip::new_msx(app.audio_mixrate() as u32);
+    let mut chip = SoundChip::new(app.audio_mixrate() as u32);
     app.audio_start();
 
     println!("Use up and down arrows to change octaves.");
@@ -25,17 +25,12 @@ fn main() -> SdlResult {
         channel.set_noise(true);
     }
 
-    // Test
-    let specs = PitchSpecs {
-        multiplier: 1.0,
-        steps: Some(32),
-        range: Some(2.5 .. 7.5),
-    };
-
-    for n in -5 ..= 15 {
-        let value = n as f32;
-        println!("{:.2} => {:.2}", value, specs.get(value));
-    }
+    // // Quantization Test
+    // for n in -5 ..= 5 {
+    //     let value = n as f32 / 10.0;
+    //     let result = soundchip::math::quantize_range_f32(value, 32, Some(-1.0 ..= 1.0));
+    //     println!("{:.3} => {:.3}", value, result);
+    // }
 
     // Writing in mono for simplicity! Ensure no pan is set in the channel!
     let wav_spec = WavSpec {
@@ -66,8 +61,9 @@ fn main() -> SdlResult {
                 println!("Channel noise: {}", channel.is_noise());
             }
             // Input
-            let note = channel.note();
             let octave = channel.octave();
+            let note = channel.note();
+            let midi_note = get_midi_note(octave, note) as f32;
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note, false);
                 channel.set_volume(1.0);
@@ -79,12 +75,12 @@ fn main() -> SdlResult {
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Right) {
-                channel.set_note(octave, note + 1, false);
+                channel.set_midi_note(midi_note + 1.0, false);
                 channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Left) {
-                channel.set_note(octave, note - 1, false);
+                channel.set_midi_note(midi_note - 1.0, false);
                 channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }

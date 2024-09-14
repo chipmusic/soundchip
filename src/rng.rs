@@ -1,4 +1,6 @@
+//! A simple, "old school" LFSR with configurable bit count.
 use crate::math::*;
+use alloc::vec::Vec;
 
 pub struct Rng {
     bit_count: u32,
@@ -10,7 +12,6 @@ pub struct Rng {
 
 const DEFAULT_VALUE: u32 = 0b01100010101011110110101010101011;
 
-/// A simple, "old school" LFSR with configurable bit count.
 impl Rng {
     /// Creates a new LFSR with `n` bits and an initial state.
     pub fn new(bit_count: u32, initial_state: u32) -> Self {
@@ -36,7 +37,7 @@ impl Rng {
         let mut rng = Self::new(bit_count, initial_state);
         let max = libm::powf(2.0, bit_count as f32) as usize - 1;
         (0..max).map(|_|{
-            quantize_steps_f32(rng.next_f32(), volume_steps)
+            quantize_range_f32(rng.next_f32(), volume_steps, Some(-1.0 ..= 1.0))
         }).collect()
     }
 
