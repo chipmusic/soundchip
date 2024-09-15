@@ -26,23 +26,26 @@ pub(crate) use math::*;
 extern crate alloc;
 use alloc::{vec, vec::Vec};
 
+const MAX_I16: f32 = (i16::MAX - 1) as f32;
+
 /// Contains multiple sound channels, and can render and mix them all at once.
 pub struct SoundChip {
     /// The sampling rate at which mixing is performed. Should match your audio playback device,
     /// but can be lower for improved performance. Usually 44100 or 48000.
     pub sample_rate: u32,
+    /// Applies a correction per channel to help avoid clipping the samples beyond -1.0 to 1.0.
+    pub auto_prevent_clipping: bool,
     channels: Vec<Channel>,
     sample_head: usize,
     last_sample_time: f64,
 }
 
-const MAX_VOL: f32 = (i16::MAX - 1) as f32;
-
 impl Default for SoundChip {
     fn default() -> Self {
         Self {
-            sample_rate: 44100,
             channels: (0..4).map(|_| Channel::default()).collect(),
+            sample_rate: 44100,
+            auto_prevent_clipping: true,
             sample_head: 0,
             last_sample_time: 0.0,
         }
@@ -54,12 +57,14 @@ impl SoundChip {
     /// of noise.
     pub fn new(sample_rate: u32) -> Self {
         // println!("New default sound chip");
-        let channels = vec![ Channel::default() ];
+        let channels = vec![Channel::default()];
         Self {
-            sample_rate,
             channels,
-            sample_head: 0,
-            last_sample_time: 0.0,
+            sample_rate,
+            ..Default::default()
+            // auto_prevent_clipping:true,
+            // sample_head: 0,
+            // last_sample_time: 0.0,
         }
     }
 
@@ -67,15 +72,16 @@ impl SoundChip {
     pub fn new_msx(sample_rate: u32) -> Self {
         // println!("New MSX sound chip");
         Self {
-            sample_rate,
             channels: (0..3)
                 .map(|i| match i {
                     0 => Channel::new_psg(true),
                     _ => Channel::new_psg(false),
                 })
                 .collect(),
-            sample_head: 0,
-            last_sample_time: 0.0,
+            sample_rate,
+            ..Default::default()
+            // sample_head: 0,
+            // last_sample_time: 0.0,
         }
     }
 
@@ -84,16 +90,17 @@ impl SoundChip {
     pub fn new_msx_scc(sample_rate: u32) -> Self {
         // println!("New MSX-SCC sound chip");
         Self {
-            sample_rate,
             channels: (0..8)
                 .map(|i| match i {
                     0 => Channel::new_psg(true),
                     1 | 2 => Channel::new_psg(false),
-                    _ => Channel::new_scc()
+                    _ => Channel::new_scc(),
                 })
                 .collect(),
-            sample_head: 0,
-            last_sample_time: 0.0,
+            sample_rate,
+            ..Default::default()
+            // sample_head: 0,
+            // last_sample_time: 0.0,
         }
     }
 
@@ -152,9 +159,15 @@ impl SoundChip {
         }
 
         self.sample_head += 1;
+        // TODO: Move out of this function
+        let vol = if self.auto_prevent_clipping {
+            self.channels().len() as f32 * (2.0 / 3.0)
+        } else {
+            2.0
+        };
         Sample {
-            left: (left.clamp(-1.0, 1.0) * MAX_VOL) as i16,
-            right: (right.clamp(-1.0, 1.0) * MAX_VOL) as i16,
+            left: (compress_volume(left, vol).clamp(-1.0, 1.0) * MAX_I16) as i16,
+            right: (compress_volume(right, vol).clamp(-1.0, 1.0) * MAX_I16) as i16,
         }
     }
 }
@@ -191,4 +204,10 @@ pub fn get_midi_note(octave: impl Into<i32>, note: impl Into<i32>) -> i32 {
     let note = wrap(note.into(), 12);
     // MIDI note number, where C4 is 60
     ((octave + 1) * 12) + note
+}
+
+#[inline(always)]
+fn compress_volume(input_vol:f32, max_vol:f32) -> f32 {
+    let mult = core::f32::consts::FRAC_2_PI;
+    libm::sinf(input_vol/(max_vol*mult))
 }

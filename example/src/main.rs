@@ -4,69 +4,6 @@ use soundchip::*;
 use mini_sdl::*;
 
 fn main() -> SdlResult {
-    let target_file: PathBuf = var_os("CARGO_MANIFEST_DIR").unwrap().into();
-    // I have this path set to a ram disk on my machine,
-    // since I'm saving the wave file for debugging purposes only.
-    let target_file = target_file.join("target/output.wav");
-    println!("Saving wav file to: {:?}", target_file);
-
-    let mut app = App::default()?;
-    let mut chip = SoundChip::new_msx(app.audio_mixrate() as u32);
-    app.audio_start();
-
-    println!("Use up and down arrows to change octaves.");
-    println!("Use left and right arrows to play different notes.");
-    println!("Hit return to toggle noise/tone .");
-    println!("Channels: {}", chip.channels().len());
-
-    let ch = 0;
-    if let Some(channel) = chip.channel(ch) {
-        channel.play();
-        channel.set_noise(true);
-    }
-
-    let msx_spec = ChipSpecs {
-        // Square wave only, sample is either -1.0 or 1.0.
-        wavetable: WavetableSpecs {
-            steps: Some(1),
-            sample_count: 8,
-            use_loop: true,
-        },
-        // No stereo (quantized pan value is always zero).
-        pan: PanSpecs {
-            steps: Some(0),
-        },
-        // Just an approximation, 4096 pitch steps in 10 octaves.
-        pitch: PitchSpecs {
-            multiplier: 1.0,
-            range: Some(16.35 ..= 16744.04),
-            steps: Some(4096),
-        },
-        volume: VolumeSpecs {
-            // 4 bit volume register allows 16 volume levels.
-            steps: Some(16),
-            // Volume declines until internal wavetable changes value.
-            attenuation: 0.0017,
-            // Non-linear volume envelope.
-            exponent: 3.0,
-            // Some chips may need custom gain to sound more accurate.
-            gain: 1.0,
-            // Fits the generated wave into 0.0 to 1.0 values.
-            prevent_negative_values: true,
-        },
-        // Noise settings.
-        noise: NoiseSpecs::Random {
-            // 1 Means a square wave (1 bit noise).
-            volume_steps: 1,
-             // "Maps" a C3 to G#5 range to a much higher noise frequency,
-            pitch: PitchSpecs {
-                multiplier: 55.0,
-                steps: Some(32),
-                range: Some(130.81 ..= 783.99),
-            },
-        },
-    };
-
     // Quantization Test
     // for n in -10 ..= 10 {
     //     let value = n as f32 / 10.0;
@@ -74,7 +11,46 @@ fn main() -> SdlResult {
     //     println!("{:.3} => {:.3}", value, result);
     // }
 
-    // Writing in mono for simplicity! Ensure no pan is set in the channel!
+    // I have this path set to a ram disk on my machine,
+    // since I'm saving the wave file for debugging purposes only.
+    let target_file: PathBuf = var_os("CARGO_MANIFEST_DIR").unwrap().into();
+    let target_file = target_file.join("target/output.wav");
+    println!("Saving wav file to: {:?}", target_file);
+
+    let mut app = App::default()?;
+    app.audio_start();
+
+    let mix_rate = app.audio_mixrate();
+    let mut chip = SoundChip::new(mix_rate);
+
+    println!("Use up and down arrows to change octaves.");
+    println!("Use left and right arrows to play different notes.");
+    println!("Hit return to toggle noise/tone .");
+    println!("Channels: {}", chip.channels().len());
+
+    // Start channels
+    let ch = 0;
+    if let Some(channel) = chip.channel(ch) {
+        channel.set_note(4, 0, true);
+        channel.play();
+        channel.set_noise(true);
+    }
+    // if let Some(channel) = chip.channel(1) {
+    //     channel.set_note(4, 4, true);
+    //     channel.play();
+    //     channel.set_noise(true);
+    // }
+    // if let Some(channel) = chip.channel(2) {
+    //     channel.set_note(4, 8, true);
+    //     channel.play();
+    //     channel.set_noise(true);
+    // }
+    // if let Some(channel) = chip.channel(3) {
+    //     channel.set_note(4, 12, true);
+    //     channel.play();
+    // }
+
+    // Writing in mono for debugging simplicity. Ensure no pan is set in the channel!
     let wav_spec = WavSpec {
         channels: 1,
         sample_rate: chip.sample_rate,
