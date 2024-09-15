@@ -22,7 +22,7 @@ impl Default for WavetableSpecs {
 impl WavetableSpecs {
     pub fn psg() -> Self {
         Self {
-            steps: Some(1),
+            steps: Some(2),
             sample_count: 8,
             use_loop: true,
         }

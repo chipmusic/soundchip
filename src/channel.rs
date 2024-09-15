@@ -237,7 +237,7 @@ impl Channel {
                         16.0..=16384.0
                     };
                     let tone_freq = 1.0 / self.period;
-                    let noise_freq = quantize_range_f64(tone_freq, *steps, Some(freq_range.clone()));
+                    let noise_freq = quantize_range_f64(tone_freq, *steps, freq_range.clone());
                     let noise_period = 1.0 / noise_freq;
                     self.noise_period = noise_period / pitch.multiplier as f64;
                 } else {
@@ -268,7 +268,7 @@ impl Channel {
             NoiseSpecs::Random { volume_steps, .. } | NoiseSpecs::Melodic { volume_steps, .. } => {
                 if self.noise_time >= self.noise_period {
                     self.noise_time = 0.0;
-                    quantize_range_f32(self.rng.next_f32(), *volume_steps, Some(0.0 ..= 1.0))
+                    quantize_range_f32(self.rng.next_f32(), *volume_steps, 0.0 ..= 1.0)
                 } else {
                     self.noise_output
                 }
@@ -291,7 +291,7 @@ impl Channel {
             self.last_sample_index = index;
             // TODO: Optional quantization!
             let value = if let Some(steps) = self.specs.wavetable.steps {
-                quantize_range_f32(self.wavetable[index] as f32, steps, Some(-1.0 ..= 1.0))
+                quantize_range_f32(self.wavetable[index] as f32, steps, -1.0 ..= 1.0)
             } else {
                 self.wavetable[index] as f32
             };
@@ -313,7 +313,7 @@ impl Channel {
         }
 
         let mono = if self.specs.volume.prevent_negative_values {
-            (self.output + 1.0) / 2.0
+            self.output.clamp(0.0, 1.0)
         } else {
             self.output
         };
@@ -334,13 +334,13 @@ impl Channel {
         // "powf" only gives the intended result in the 0 to 1 range, so we only apply
         // the chip's gain after the pow function.
         let level = if let Some(steps) = self.specs.volume.steps {
-            quantize_range_f32(self.volume, steps, Some(0.0 ..= 1.0))
+            quantize_range_f32(self.volume, steps, 0.0 ..= 1.0)
         } else {
             self.volume()
         };
         let volume = libm::powf(level, self.specs.volume.exponent) * self.specs.volume.gain;
         let pan = if let Some(pan_steps) = self.specs.pan.steps {
-            quantize_range_f32(self.pan, pan_steps, Some(-1.0 ..= 1.0))
+            quantize_range_f32(self.pan, pan_steps, -1.0 ..= 1.0)
         } else {
             0.0
         };

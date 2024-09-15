@@ -47,7 +47,7 @@ impl NoiseSpecs {
         let max = Note::GSharp.frequency(5);
         if allow_noise {
             Self::Random {
-                volume_steps: 1,
+                volume_steps: 2,
                 pitch: PitchSpecs {
                     multiplier: 55.0,
                     steps: Some(32),

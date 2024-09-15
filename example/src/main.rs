@@ -11,7 +11,7 @@ fn main() -> SdlResult {
     println!("Saving wav file to: {:?}", target_file);
 
     let mut app = App::default()?;
-    let mut chip = SoundChip::new(app.audio_mixrate() as u32);
+    let mut chip = SoundChip::new_msx(app.audio_mixrate() as u32);
     app.audio_start();
 
     println!("Use up and down arrows to change octaves.");
@@ -25,10 +25,52 @@ fn main() -> SdlResult {
         channel.set_noise(true);
     }
 
-    // // Quantization Test
-    // for n in -5 ..= 5 {
+    let msx_spec = ChipSpecs {
+        // Square wave only, sample is either -1.0 or 1.0.
+        wavetable: WavetableSpecs {
+            steps: Some(1),
+            sample_count: 8,
+            use_loop: true,
+        },
+        // No stereo (quantized pan value is always zero).
+        pan: PanSpecs {
+            steps: Some(0),
+        },
+        // Just an approximation, 4096 pitch steps in 10 octaves.
+        pitch: PitchSpecs {
+            multiplier: 1.0,
+            range: Some(16.35 ..= 16744.04),
+            steps: Some(4096),
+        },
+        volume: VolumeSpecs {
+            // 4 bit volume register allows 16 volume levels.
+            steps: Some(16),
+            // Volume declines until internal wavetable changes value.
+            attenuation: 0.0017,
+            // Non-linear volume envelope.
+            exponent: 3.0,
+            // Some chips may need custom gain to sound more accurate.
+            gain: 1.0,
+            // Fits the generated wave into 0.0 to 1.0 values.
+            prevent_negative_values: true,
+        },
+        // Noise settings.
+        noise: NoiseSpecs::Random {
+            // 1 Means a square wave (1 bit noise).
+            volume_steps: 1,
+             // "Maps" a C3 to G#5 range to a much higher noise frequency,
+            pitch: PitchSpecs {
+                multiplier: 55.0,
+                steps: Some(32),
+                range: Some(130.81 ..= 783.99),
+            },
+        },
+    };
+
+    // Quantization Test
+    // for n in -10 ..= 10 {
     //     let value = n as f32 / 10.0;
-    //     let result = soundchip::math::quantize_range_f32(value, 32, Some(-1.0 ..= 1.0));
+    //     let result = soundchip::math::quantize_range_f32(value, 5, -1.0 ..= 1.0);
     //     println!("{:.3} => {:.3}", value, result);
     // }
 
