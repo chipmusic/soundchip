@@ -1,5 +1,3 @@
-//! The SoundChip struct contains multiple channels, each with configurable settings that can
-//! replicate old audio chips like PSGs and simple wave table chips.
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/readme.md"))]
 #![warn(clippy::std_instead_of_core, clippy::std_instead_of_alloc)]
 #![no_std]

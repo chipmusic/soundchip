@@ -4,7 +4,7 @@
 Noise quantizing and clamping seems to work now.
 *Pardon the mess, this is a work-in-progress. API changes are still frequent.*
 
-Soundchip doesn't require the standard library, but it still requires allocation to use Vecs which means it may not be used in some strict, bare metal cases. This requirement may be removed in the future, making it more strictly "no_std".
+The SoundChip struct contains multiple channels, each with configurable settings that can replicate old audio chips like PSGs and simple wave table chips. It doesn't require the standard library, but it still requires allocation to use Vecs which means it may not be used in some strict, bare metal cases. This requirement may be removed in the future, making it more strictly "no_std".
 
 Soundchip is *not* an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the ChipSpecs struct may look like this:
 
