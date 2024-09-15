@@ -6,7 +6,7 @@ Noise quantizing and clamping seems to work now.
 
 Soundchip doesn't require the standard library, but it still requires allocation to use Vecs which means it may not be used in some strict, bare metal cases. This requirement may be removed in the future, making it more strictly "no_std".
 
-Notice that soundchip is *not* an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the ChipSpecs struct may look like this:
+Soundchip is *not* an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the ChipSpecs struct may look like this:
 
 ```rust
 let msx_spec = ChipSpecs {
@@ -45,7 +45,7 @@ let msx_spec = ChipSpecs {
     noise: NoiseSpecs::Random {
         // 2 steps means a square wave (1 bit noise).
         volume_steps: 2,
-         // "Maps" a C3 to G#5 range to a much higher noise frequency,
+        // "Maps" a C3 to G#5 range to a much higher noise frequency,
         pitch: PitchSpecs {
             multiplier: 55.0,
             steps: Some(32),
