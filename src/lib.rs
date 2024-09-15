@@ -27,7 +27,6 @@ pub(crate) use math::*;
 
 extern crate alloc;
 use alloc::{vec, vec::Vec};
-// use smooth_buffer::SmoothBuffer;
 
 /// Contains multiple sound channels, and can render and mix them all at once.
 pub struct SoundChip {
@@ -37,8 +36,6 @@ pub struct SoundChip {
     channels: Vec<Channel>,
     sample_head: usize,
     last_sample_time: f64,
-    // buffer_left: SmoothBuffer<3>,
-    // buffer_right: SmoothBuffer<3>,
 }
 
 const MAX_VOL: f32 = (i16::MAX - 1) as f32;
@@ -50,8 +47,6 @@ impl Default for SoundChip {
             channels: (0..4).map(|_| Channel::default()).collect(),
             sample_head: 0,
             last_sample_time: 0.0,
-            // buffer_left: SmoothBuffer::default(),
-            // buffer_right: SmoothBuffer::default(),
         }
     }
 }
@@ -163,12 +158,6 @@ impl SoundChip {
             left: (left.clamp(-1.0, 1.0) * MAX_VOL) as i16,
             right: (right.clamp(-1.0, 1.0) * MAX_VOL) as i16,
         }
-        // self.buffer_left.push((left / len).clamp(-1.0, 1.0));
-        // self.buffer_right.push((right / len).clamp(-1.0, 1.0));
-        // Sample {
-        //     left: (self.buffer_left.average() * MAX_VOL) as i16,
-        //     right: (self.buffer_right.average() * MAX_VOL) as i16,
-        // }
     }
 }
 
