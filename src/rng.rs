@@ -1,6 +1,5 @@
 //! A simple, "old school" LFSR with configurable bit count.
-use crate::math::*;
-use alloc::vec::Vec;
+use crate::*;
 
 pub struct Rng {
     bit_count: u32,
@@ -48,12 +47,12 @@ impl Rng {
         self.state & self.mask
     }
 
-    /// Converts next random u32 value to range (-1.0 .. 1.0)
+    /// Converts next random u32 value to range (0.0 .. 1.0)
     pub fn next_f32(&mut self) -> f32 {
-        ((self.next_u32() as f32 / self.f32_max) - 0.5) * 2.0
+        self.next_u32() as f32 / self.f32_max
     }
 
-    /// Converts next random u32 value to a single bit
+    /// Returns the value of the next least significant bit in the sequence.
     pub fn next_bit(&mut self) -> bool {
         self.next_u32() & 1 == 1
     }

@@ -1,8 +1,36 @@
 use core::ops::RangeInclusive;
+use libm::{round, roundf, sinf};
+
+#[inline(always)]
+pub(crate) fn lerp(start: f32, end: f32, t: f32) -> f32 {
+    start + t * (end - start)
+}
+
+#[inline(always)]
+pub(crate) fn wrap(value: i32, modulus: i32) -> i32 {
+    ((value % modulus) + modulus) % modulus
+}
+
+#[inline(always)]
+pub(crate) fn compress_volume(input_vol:f32, max_vol:f32) -> f32 {
+    let mult = core::f32::consts::FRAC_2_PI;
+    sinf(input_vol/(max_vol*mult))
+}
+
+#[inline(always)]
+/// Returns the MIDI note value given an octave (zero to 10) and a note (zero to 11).
+pub fn get_midi_note(octave: impl Into<i32>, note: impl Into<i32>) -> i32 {
+    // Handle negative values and values beyond range
+    let octave = wrap(octave.into(), 10);
+    let note = wrap(note.into(), 12);
+    // MIDI note number, where C4 is 60
+    ((octave + 1) * 12) + note
+}
+
 
 #[inline(always)]
 pub fn quantize_f32(value: f32, size: f32) -> f32 {
-    libm::roundf(value / size) * size
+    roundf(value / size) * size
 }
 
 pub fn quantize_range_f32(value: f32, steps: u16, range: RangeInclusive<f32>) -> f32 {
@@ -14,17 +42,15 @@ pub fn quantize_range_f32(value: f32, steps: u16, range: RangeInclusive<f32>) ->
     let min = *range.start();
     let max = *range.end();
     let step_size = (max - min) / (steps as f32);
-    // Clamp the value to the range [min, max]
-    let clamped_value = value.clamp(min, max);
     // Find the nearest step by dividing the clamped value by step size, rounding it, and multiplying back
-    let quantized_value = libm::roundf((clamped_value - min) / step_size) * step_size + min;
+    let quantized_value = (roundf((value - min) / step_size) * step_size) + min;
     // Ensure the result is within the range after quantization
     quantized_value.clamp(min, max)
 }
 
 #[inline(always)]
 pub fn quantize_f64(value: f64, size: f64) -> f64 {
-    libm::round(value / size) * size
+    round(value / size) * size
 }
 
 pub fn quantize_range_f64(value: f64, steps: u16, range: RangeInclusive<f64>) -> f64 {
@@ -36,10 +62,8 @@ pub fn quantize_range_f64(value: f64, steps: u16, range: RangeInclusive<f64>) ->
     let min = *range.start();
     let max = *range.end();
     let step_size = (max - min) / (steps as f64);
-    // Clamp the value to the range [min, max]
-    let clamped_value = value.clamp(min, max);
     // Find the nearest step by dividing the clamped value by step size, rounding it, and multiplying back
-    let quantized_value = libm::round((clamped_value - min) / step_size) * step_size + min;
+    let quantized_value = (round((value - min) / step_size) * step_size) + min;
     // Ensure the result is within the range after quantization
     quantized_value.clamp(min, max)
 }

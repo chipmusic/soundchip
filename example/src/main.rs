@@ -1,16 +1,11 @@
 use std::{env::var_os, path::PathBuf};
 use hound::{WavSpec, WavWriter};
+use presets::ENV_PIANO;
+// use math::get_midi_note;
 use soundchip::*;
 use mini_sdl::*;
 
 fn main() -> SdlResult {
-    // Quantization Test
-    // for n in -10 ..= 10 {
-    //     let value = n as f32 / 10.0;
-    //     let result = soundchip::math::quantize_range_f32(value, 5, -1.0 ..= 1.0);
-    //     println!("{:.3} => {:.3}", value, result);
-    // }
-
     // I have this path set to a ram disk on my machine,
     // since I'm saving the wave file for debugging purposes only.
     let target_file: PathBuf = var_os("CARGO_MANIFEST_DIR").unwrap().into();
@@ -26,29 +21,16 @@ fn main() -> SdlResult {
     println!("Use up and down arrows to change octaves.");
     println!("Use left and right arrows to play different notes.");
     println!("Hit return to toggle noise/tone .");
-    println!("Channels: {}", chip.channels().len());
 
     // Start channels
     let ch = 0;
-    if let Some(channel) = chip.channel(ch) {
+    chip.channels.push(Channel::default());
+    if let Some(channel) = chip.channels.get_mut(ch) {
+        channel.envelope_volume = Some(ENV_PIANO.clone());
         channel.set_note(4, 0, true);
         channel.play();
         channel.set_noise(true);
     }
-    // if let Some(channel) = chip.channel(1) {
-    //     channel.set_note(4, 4, true);
-    //     channel.play();
-    //     channel.set_noise(true);
-    // }
-    // if let Some(channel) = chip.channel(2) {
-    //     channel.set_note(4, 8, true);
-    //     channel.play();
-    //     channel.set_noise(true);
-    // }
-    // if let Some(channel) = chip.channel(3) {
-    //     channel.set_note(4, 12, true);
-    //     channel.play();
-    // }
 
     // Writing in mono for debugging simplicity. Ensure no pan is set in the channel!
     let wav_spec = WavSpec {
@@ -63,12 +45,7 @@ fn main() -> SdlResult {
     while !app.quit_requested {
         app.frame_start()?;
 
-        if let Some(channel) = chip.channel(ch) {
-            // Lower the volume on every frame, simulating a 1 second volume envelope.
-            // Notice how this envelope is quantized to 16 steps, per chip settings.
-            let vol = channel.volume();
-            let env_step = app.elapsed_time() as f32;
-            channel.set_volume(vol - env_step);
+        if let Some(channel) = chip.channels.get_mut(ch) {
             // Toggle noise
             if app.gamepad.is_just_pressed(Button::Start) {
                 if channel.is_noise(){
@@ -81,25 +58,30 @@ fn main() -> SdlResult {
             // Input
             let octave = channel.octave();
             let note = channel.note();
-            let midi_note = get_midi_note(octave, note) as f32;
+            let midi_note = math::get_midi_note(octave, note) as f32;
+
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note, false);
-                channel.set_volume(1.0);
+                channel.reset_envelopes();
+                // channel.set_volume(1.0);
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
                 channel.set_note(octave - 1, note, false);
-                channel.set_volume(1.0);
+                channel.reset_envelopes();
+                // channel.set_volume(1.0);
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Right) {
                 channel.set_midi_note(midi_note + 1.0, false);
-                channel.set_volume(1.0);
+                channel.reset_envelopes();
+                // channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Left) {
                 channel.set_midi_note(midi_note - 1.0, false);
-                channel.set_volume(1.0);
+                channel.reset_envelopes();
+                // channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
         }

@@ -1,5 +1,4 @@
 use crate::*;
-use alloc::vec::Vec;
 use core::f32::consts::TAU;
 
 const FREQ_C4: f64 = 261.63;
@@ -8,22 +7,25 @@ const FREQ_C4: f64 = 261.63;
 pub struct Channel {
     /// Enables and disables sample looping. TODO: Looping strategies, i.e. In and Out points.
     pub loop_sample: bool,
+    pub envelope_volume: Option<Envelope>,
+    pub envelope_pitch: Option<Envelope>,
     // Internal state. All timing values are f64, sample values are f32
+    envelope_time: f32,
+    wavetable: Vec<f32>,
     specs: ChipSpecs,
     playing: bool,
+    output_wave: f32,
     noise_on: bool,
-    wavetable: Vec<f32>,
     period: f64,
     time: f64,
-    output: f32,
     volume: f32,
+    // volume_with_envelope: f32,
     pan: f32,
     midi_note: f32,
-    left_multiplier: f32,
-    right_multiplier: f32,
-    last_sample_value: f32,
+    left_mult: f32,
+    right_mult: f32,
     last_sample_index: usize,
-    // Gets populated automatically with inverted and clamped value from chip specs volume_attenuation
+    last_sample_value: f32,
     output_attenuation: f32,
     // NoiseSpecs
     rng: Rng,
@@ -38,6 +40,10 @@ impl From<ChipSpecs> for Channel {
         let rng = Self::get_rng(&specs);
         let sample_count = specs.wavetable.sample_count;
         let mut result = Self {
+            loop_sample: true,
+            envelope_volume: None,
+            envelope_pitch: None,
+            envelope_time: 0.0,
             // Default sine wave
             wavetable: (0..sample_count)
                 .map(|i| {
@@ -45,25 +51,26 @@ impl From<ChipSpecs> for Channel {
                     libm::sinf(a)
                 })
                 .collect(),
+            specs,
             playing: false,
+            output_wave: 0.0,
             noise_on: false,
             volume: 1.0,
+            // volume_with_envelope: 1.0,
             pan: 0.0,
-            loop_sample: true,
             midi_note: 60.0,
             period: 1.0 / FREQ_C4,
             time: 0.0,
-            left_multiplier: 0.5,
-            right_multiplier: 0.5,
-            output: 0.0,
-            output_attenuation: 0.0,
+            left_mult: 0.5,
+            right_mult: 0.5,
             last_sample_index: 0,
             last_sample_value: 0.0,
-            noise_period: 0.0,
-            noise_time: 0.0,
-            noise_output: 0.0,
-            specs,
+            output_attenuation: 0.0,
+            // Noise
             rng,
+            noise_time: 0.0,
+            noise_period: 0.0,
+            noise_output: 0.0,
         };
         result.set_note(4, Note::C, true);
         result.set_volume(1.0);
@@ -111,6 +118,9 @@ impl Channel {
     /// Stops sound generation on this channel.
     pub fn stop(&mut self) {
         self.playing = false;
+        self.time = 0.0;
+        self.noise_time = 0.0;
+        self.envelope_time = 0.0;
     }
 
     /// Current playing state.
@@ -143,7 +153,7 @@ impl Channel {
         1.0 / self.period as f32
     }
 
-    /// Current volume. Values above 1.0 may cause clipping.
+    /// The main volume level. Values above 1.0 may cause clipping.
     pub fn volume(&self) -> f32 {
         self.volume
     }
@@ -158,10 +168,19 @@ impl Channel {
         &mut self.wavetable
     }
 
+    pub fn reset_envelopes(&mut self) {
+        self.envelope_time = 0.0;
+        if let Some(env) = &mut self.envelope_volume {
+            env.state = EnvelopeState::Attack
+        }
+        if let Some(env) = &mut self.envelope_pitch {
+            env.state = EnvelopeState::Attack
+        }
+    }
+
     /// TODO: Better noise Rng per noise settings
     pub fn set_specs(&mut self, specs: ChipSpecs) {
         self.rng = Self::get_rng(&specs);
-        // self.rng_cache = Self::get_rng_cache(&specs);
         self.specs = specs;
     }
 
@@ -206,17 +225,20 @@ impl Channel {
         self.set_midi_note(midi_note, reset_time);
     }
 
-
     /// Same as set_note, but the notes are an f32 value which allows "in-between" notes, or pitch sliding,
     /// and uses MIDI codes instead of octave and note, i.e. C4 is MIDI code 60.
     pub fn set_midi_note(&mut self, note: impl Into<f64>, reset_time: bool) {
-        let note:f64 = note.into();
+        let note: f64 = note.into();
         self.midi_note = note as f32;
         // cache current phase to re-apply at the end
         let previous_phase = (self.time % self.period as f64) / self.period as f64;
         // Calculate note frequency
         let frequency = note_to_frequency_f64(note);
         self.period = 1.0 / frequency;
+        // Envelope timer
+        if reset_time {
+            self.envelope_time = 0.0;
+        }
         // If looping isn't required, ensure sample will be played from beginning.
         // Also, if channel is not playing it means we'll start playing a cycle
         // from 0.0 to avoid clicks.
@@ -231,7 +253,7 @@ impl Channel {
             NoiseSpecs::Random { pitch, .. } | NoiseSpecs::Melodic { pitch, .. } => {
                 if let Some(steps) = &pitch.steps {
                     let freq_range = if let Some(range) = &pitch.range {
-                        *range.start() as f64..= *range.end() as f64
+                        *range.start() as f64..=*range.end() as f64
                     } else {
                         // C0 to C10 in "scientific pitch"", roughly the human hearing range
                         16.0..=16384.0
@@ -252,15 +274,22 @@ impl Channel {
     /// Returns the current sample and advances the internal timer.
     pub(crate) fn sample(&mut self, delta_time: f64) -> Sample<f32> {
         // Always apply attenuation, so that values always drift to zero
-        self.output *= self.output_attenuation;
+        self.output_wave *= self.output_attenuation;
 
         // Early return if not playing
         if !self.playing {
             return Sample {
-                left: self.output * self.left_multiplier,
-                right: self.output * self.right_multiplier,
+                left: self.output_wave * self.left_mult,
+                right: self.output_wave * self.right_mult,
             };
         }
+
+        // Adjust volume with envelope
+        let volume_env = if let Some(env) = &mut self.envelope_volume {
+            env.process(self.envelope_time)
+        } else {
+            1.0
+        };
 
         // Generate noise level, will be mixed later
         self.noise_output = match &self.specs.noise {
@@ -268,7 +297,7 @@ impl Channel {
             NoiseSpecs::Random { volume_steps, .. } | NoiseSpecs::Melodic { volume_steps, .. } => {
                 if self.noise_time >= self.noise_period {
                     self.noise_time = 0.0;
-                    quantize_range_f32(self.rng.next_f32(), *volume_steps, 0.0 ..= 1.0)
+                    (quantize_range_f32(self.rng.next_f32(), *volume_steps, 0.0..=1.0) * 2.0) - 1.0
                 } else {
                     self.noise_output
                 }
@@ -291,14 +320,14 @@ impl Channel {
             self.last_sample_index = index;
             // TODO: Optional quantization!
             let value = if let Some(steps) = self.specs.wavetable.steps {
-                quantize_range_f32(self.wavetable[index] as f32, steps, -1.0 ..= 1.0)
+                quantize_range_f32(self.wavetable[index] as f32, steps, -1.0..=1.0)
             } else {
                 self.wavetable[index] as f32
             };
 
             // Avoids resetting attenuation if value hasn't changed
             if value != self.last_sample_value {
-                self.output = value;
+                self.output_wave = value;
                 self.last_sample_value = value;
             }
         }
@@ -306,22 +335,35 @@ impl Channel {
         // Advance timer
         self.time += delta_time;
         self.noise_time += delta_time;
+        self.envelope_time += delta_time as f32;
 
-        // Overwrite or mix with noise
+        // Mix with noise (currently just overwrites). TODO: Mix
         if self.noise_on {
-            self.output = self.noise_output;
+            self.output_wave = self.noise_output;
         }
 
-        let mono = if self.specs.volume.prevent_negative_values {
-            self.output.clamp(0.0, 1.0)
+        // Quantize volume (if needed) and apply log curve.
+        // Any math using the envelope needs to be calculate per sample, unfortunately.
+        let vol = libm::powf(
+            if let Some(steps) = self.specs.volume.steps {
+                quantize_range_f32(self.volume * volume_env, steps, 0.0..=1.0)
+            } else {
+                self.volume * volume_env
+            },
+            self.specs.volume.exponent,
+        );
+
+        // Apply volume and optionally clamp to positive values
+        let output = if self.specs.volume.prevent_negative_values {
+            self.output_wave.clamp(0.0, 1.0) * vol
         } else {
-            self.output
+            self.output_wave * vol
         };
 
-        // return output with multipliers applied
+        // Return sample with volume and pan applied
         Sample {
-            left: mono * self.left_multiplier,
-            right: mono * self.right_multiplier,
+            left: output * self.left_mult,
+            right: output * self.right_mult,
         }
     }
 
@@ -331,21 +373,15 @@ impl Channel {
     pub(crate) fn calculate_multipliers(&mut self) {
         // Pre calculate this so we don't do it on every sample
         self.output_attenuation = 1.0 - self.specs.volume.attenuation.clamp(0.0, 1.0);
-        // "powf" only gives the intended result in the 0 to 1 range, so we only apply
-        // the chip's gain after the pow function.
-        let level = if let Some(steps) = self.specs.volume.steps {
-            quantize_range_f32(self.volume, steps, 0.0 ..= 1.0)
-        } else {
-            self.volume()
-        };
-        let volume = libm::powf(level, self.specs.volume.exponent) * self.specs.volume.gain;
+        // Pan quantization
         let pan = if let Some(pan_steps) = self.specs.pan.steps {
-            quantize_range_f32(self.pan, pan_steps, -1.0 ..= 1.0)
+            quantize_range_f32(self.pan, pan_steps, -1.0..=1.0)
         } else {
-            0.0
+            self.pan
         };
-        self.left_multiplier = ((pan - 1.0) / -2.0) * volume;
-        self.right_multiplier = ((pan + 1.0) / 2.0) * volume;
+        // Is applying gain to the pan OK? Needs testing
+        self.left_mult = ((pan - 1.0) / -2.0) * self.specs.volume.gain;
+        self.right_mult = ((pan + 1.0) / 2.0) * self.specs.volume.gain;
     }
 
     fn get_rng(specs: &ChipSpecs) -> Rng {
@@ -357,7 +393,6 @@ impl Channel {
         }
     }
 }
-
 
 #[inline(always)]
 pub(crate) fn note_to_frequency_f64(note: f64) -> f64 {

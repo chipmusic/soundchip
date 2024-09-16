@@ -1,5 +1,8 @@
 # TO DO:
 
+[ ] Envelopes
+    [ ] Add parameter to "envelope.process()" so that the envelope "knows" if the current sample is a new wavetable cycle, and only changes state on new cycles to avoid curve discontinuity
+
 [ ] Additional presets: NES, PCEngine
 
 [x] readme.md

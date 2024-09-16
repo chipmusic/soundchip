@@ -21,7 +21,7 @@ impl Default for VolumeSpecs {
         Self {
             steps: Some(16),
             attenuation: 0.001,
-            exponent: 3.0,
+            exponent: 2.5,
             gain: 1.0,
             prevent_negative_values: false,
         }
