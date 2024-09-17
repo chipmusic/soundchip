@@ -9,7 +9,6 @@ const FREQ_C4: f64 = 261.63;
 pub struct Channel {
     // Wavetable
     /// Enables and disables sample looping. TODO: Looping strategies, i.e. In and Out points.
-    pub wave_loop: bool,
     wavetable: Vec<f32>,
     wave_out: f32,
     // Timing. All timing values are f64, sample values are f32
@@ -56,7 +55,6 @@ impl From<ChipSpecs> for Channel {
             period: 1.0 / FREQ_C4,
             // Wavetable
             wavetable: Self::get_wavetable(&specs),
-            wave_loop: true,
             wave_out: 0.0,
             // Volume
             volume: 1.0,
@@ -247,7 +245,7 @@ impl Channel {
         if reset_time {
             self.time_env = 0.0;
         }
-        self.time = if !self.wave_loop || !self.playing || reset_time {
+        self.time = if !self.specs.wavetable.use_loop || !self.playing || reset_time {
             // If looping isn't required, ensure sample will be played from beginning.
             // Also, if channel is not playing it means we'll start playing a cycle
             // from 0.0 to avoid clicks.
@@ -327,7 +325,7 @@ impl Channel {
 
         // Determine wavetable index
         let len = self.wavetable.len();
-        let index = if self.wave_loop {
+        let index = if self.specs.wavetable.use_loop {
             let phase = (self.time % period) / period;
             (phase * len as f64) as usize
         } else {

@@ -10,11 +10,11 @@ Soundchip is **_not_** an emulator, it simply allows you to customize the sound 
 use soundchip::*;
 let msx_spec = ChipSpecs {
     wavetable: WavetableSpecs {
-        // Two steps, sample is either -1.0 or 1.0.
+        // Square wave (two steps, sample output is always -1.0 or 1.0).
         steps: Some(2),
         // 8 samples would also allow "duty cycle" for the square wave
         sample_count: 8,
-        // Wave is always assumed to loop.
+        // Ignored for now, the entire wave always loops.
         // May change in the future to allow playing sampled sounds.
         use_loop: true,
     },
