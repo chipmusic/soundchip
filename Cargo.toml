@@ -1,11 +1,12 @@
 [package]
 name = "soundchip"
-version = "0.1.9"
+version = "0.2.0"
 edition = "2021"
-description = "Simple software sinth with configurable channels for authentic retro sounds."
+description = "Software sinth with configurable channels for authentic sounding virtual sound chips."
 license = "MIT"
 repository = "https://github.com/chipmusic/soundchip"
 documentation = "https://docs.rs/soundchip/latest/"
+categories = ["no-std"]
 
 [dependencies]
 libm = "0.2.8"

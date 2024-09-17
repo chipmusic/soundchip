@@ -1,4 +1,4 @@
-use soundchip::math::quantize_range_f32;
+use soundchip::math::{quantize_range_f32, remap_range};
 
 #[test]
 fn quantization_test() {
@@ -15,4 +15,33 @@ fn quantization_test() {
         // println!("{:.3} => {:.3}", value, result);
     }
     assert_eq!(steps, value_count);
+}
+
+
+#[test]
+fn remap_test(){
+    let a = remap_range(1.0, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
+    assert_eq!(a, 5.0);
+
+    let b = remap_range(2.0, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
+    assert_eq!(b, 10.0);
+
+    let c = remap_range(1.5, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
+    assert_eq!(c, 7.5);
+
+    let d = remap_range(0.0, &(-1.0 ..= 1.0), &(0.0 ..= 1.0));
+    assert_eq!(d, 0.5);
+
+    let d = remap_range(0.5, &(0.0 ..= 1.0), &(-1.0 ..= 1.0));
+    assert_eq!(d, 0.0);
+
+    let d = remap_range(0.0, &(0.0 ..= 1.0), &(-1.0 ..= 1.0));
+    assert_eq!(d, -1.0);
+
+    // Inverted range
+    let e = remap_range(0.0, &(0.0 ..= 1.0), &(0.0 ..= -1.0));
+    assert_eq!(e, 0.0);
+
+    let f = remap_range(1.0, &(0.0 ..= 1.0), &(0.0 ..= -1.0));
+    assert_eq!(f, -1.0);
 }

@@ -1,7 +1,6 @@
+use presets::{ENV_LINEAR_DECAY, ENV_PIANO};
 use std::{env::var_os, path::PathBuf};
 use hound::{WavSpec, WavWriter};
-use presets::ENV_PIANO;
-// use math::get_midi_note;
 use soundchip::*;
 use mini_sdl::*;
 
@@ -22,12 +21,13 @@ fn main() -> SdlResult {
     println!("Use left and right arrows to play different notes.");
     println!("Hit return to toggle noise/tone .");
 
-    // Start channels
+    // Add channel
     let ch = 0;
     chip.channels.push(Channel::default());
     if let Some(channel) = chip.channels.get_mut(ch) {
-        channel.envelope_volume = Some(ENV_PIANO.clone());
-        channel.set_note(4, 0, true);
+        channel.volume_env = Some(ENV_PIANO);
+        channel.pitch_env = Some(ENV_LINEAR_DECAY.offset(-1.0));
+        channel.pitch_env_multiplier = 8.0; //plus or minus 3 full octaves (2 to the power of 3)
         channel.play();
         channel.set_noise(true);
     }
@@ -48,40 +48,33 @@ fn main() -> SdlResult {
         if let Some(channel) = chip.channels.get_mut(ch) {
             // Toggle noise
             if app.gamepad.is_just_pressed(Button::Start) {
-                if channel.is_noise(){
-                    channel.set_noise(false);
-                } else {
-                    channel.set_noise(true);
-                }
+                let is_noise = channel.is_noise();
+                channel.set_noise(!is_noise);
                 println!("Channel noise: {}", channel.is_noise());
             }
-            // Input
+            // Get current values
             let octave = channel.octave();
             let note = channel.note();
             let midi_note = math::get_midi_note(octave, note) as f32;
-
+            // Play notes, change pitch
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note, false);
                 channel.reset_envelopes();
-                // channel.set_volume(1.0);
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
                 channel.set_note(octave - 1, note, false);
                 channel.reset_envelopes();
-                // channel.set_volume(1.0);
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Right) {
                 channel.set_midi_note(midi_note + 1.0, false);
                 channel.reset_envelopes();
-                // channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Left) {
                 channel.set_midi_note(midi_note - 1.0, false);
                 channel.reset_envelopes();
-                // channel.set_volume(1.0);
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
         }

@@ -1,6 +1,6 @@
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/readme.md"))]
 #![warn(clippy::std_instead_of_core, clippy::std_instead_of_alloc)]
-// #![no_std]
+#![no_std]
 
 mod sound_chip;
 pub use sound_chip::*;

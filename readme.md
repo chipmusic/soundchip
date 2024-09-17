@@ -1,12 +1,10 @@
-
-
-***UPDATE***:
-Noise quantizing and clamping seems to work now.
-*Pardon the mess, this is a work-in-progress. API changes are still frequent.*
+**_UPDATE_**:
+Volume and Pitch ADSR envelopes. Vibratto and Tremolo are next.
+_Pardon the mess, this is a work-in-progress. API changes are still frequent._
 
 The SoundChip struct contains multiple channels, each with configurable settings that can replicate old audio chips like PSGs and simple wave table chips. It doesn't require the standard library, but it still requires allocation to use Vecs which means it may not be used in some strict, bare metal cases. This requirement may be removed in the future, making it more strictly "no_std".
 
-Soundchip is *not* an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the ChipSpecs struct may look like this:
+Soundchip is **_not_** an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the ChipSpecs struct may look like this:
 
 ```rust
 use soundchip::*;
@@ -20,7 +18,8 @@ let msx_spec = ChipSpecs {
         // May change in the future to allow playing sampled sounds.
         use_loop: true,
     },
-    // No stereo (quantized pan value is always zero).
+    // Some(0) forces the quantization to always zero (mono).
+    // "None" would mean "no quantization".
     pan: PanSpecs {
         steps: Some(0),
     },
@@ -31,15 +30,15 @@ let msx_spec = ChipSpecs {
         steps: Some(4096),
     },
     volume: VolumeSpecs {
-        // 16 volume envelope levels.
+        // Quantized to 16 volume levels. Also affects volume envelope.
         steps: Some(16),
-        // Volume declines on every sample, until wavetable changes value.
+        // Volume declines on every sample, and resets when the wavetable changes value.
         attenuation: 0.0017,
         // Non-linear volume envelope. Use 1.0 for linear.
         exponent: 3.0,
-        // Some chips may need custom gain to sound more accurate.
+        // Some chips may need custom volume gain to sound more accurate.
         gain: 1.0,
-        // Fits the generated wave into 0.0 to 1.0 values.
+        // Clamps the generated wave into 0.0 to 1.0 values.
         prevent_negative_values: true,
     },
     // Noise settings.
@@ -50,7 +49,7 @@ let msx_spec = ChipSpecs {
         pitch: PitchSpecs {
             multiplier: 55.0,
             steps: Some(32),
-            range: Some(130.81 ..= 783.99),
+            range: Some(130.81 ..= 783.99), // C3 to G#5
         },
     },
 };

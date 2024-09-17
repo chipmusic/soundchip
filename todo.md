@@ -1,7 +1,11 @@
 # TO DO:
 
-[ ] Envelopes
+[.] Envelopes
     [ ] Add parameter to "envelope.process()" so that the envelope "knows" if the current sample is a new wavetable cycle, and only changes state on new cycles to avoid curve discontinuity
+
+[ ] Additional channel processing:
+    [ ] Vibratto (pitch)
+    [ ] Tremolo (volume)
 
 [ ] Additional presets: NES, PCEngine
 

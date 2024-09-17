@@ -29,6 +29,15 @@ pub fn get_midi_note(octave: impl Into<i32>, note: impl Into<i32>) -> i32 {
 
 
 #[inline(always)]
+pub fn remap_range(value:f32, in_range:&RangeInclusive<f32>, out_range:&RangeInclusive<f32>) -> f32 {
+    let source_range = in_range.end() - in_range.start();
+    let x = (value - in_range.start()) / source_range;
+    let dest_range = out_range.end() - out_range.start();
+    (dest_range * x) + out_range.start()
+}
+
+
+#[inline(always)]
 pub fn quantize_f32(value: f32, size: f32) -> f32 {
     roundf(value / size) * size
 }

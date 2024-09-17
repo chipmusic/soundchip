@@ -1,8 +1,10 @@
+/// Controls the wavetable length, quantization and looping. SoundChip always uses a wavetable, even
+/// for square waves.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WavetableSpecs {
     /// The length of the wavetable (how many samples per cycle)
     pub sample_count: usize,
-    /// TODO: This will need a LoopKind
+    /// TODO: This will need a LoopKind enum.
     pub use_loop: bool,
     /// The number of steps per sample. For a PSG with only square waves this number doesn't matter
     /// as long as it's 1 or higher. For a simple wavetable like the SCC this number is 256 (1 byte).
