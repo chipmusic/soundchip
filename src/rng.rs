@@ -26,7 +26,7 @@ impl Rng {
             bit_count,
             mask,
             tap: get_tap(bit_count),
-            f32_max: libm::powf(2.0, bit_count as f32),
+            f32_max: libm::powf(2.0, bit_count as f32 ),
         }
     }
 
@@ -36,7 +36,7 @@ impl Rng {
         let mut rng = Self::new(bit_count, initial_state);
         let max = libm::powf(2.0, bit_count as f32) as usize - 1;
         (0..max).map(|_|{
-            quantize_range_f32(rng.next_f32(), volume_steps, -1.0 ..= 1.0)
+            quantize_range(rng.next_f32(), volume_steps, -1.0 ..= 1.0)
         }).collect()
     }
 

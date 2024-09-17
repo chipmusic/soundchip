@@ -68,6 +68,10 @@ impl Envelope {
         self.state = EnvelopeState::Attack;
     }
 
+    pub fn set_idle(&mut self) {
+        self.state = EnvelopeState::Idle
+    }
+
     pub fn process(&mut self, time: f32) -> f32 {
         match self.state {
             EnvelopeState::Attack => {

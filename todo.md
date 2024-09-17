@@ -7,7 +7,7 @@
     [ ] Vibratto (pitch)
     [ ] Tremolo (volume)
 
-[ ] Additional presets: NES, PCEngine
+[ ] Additional presets: NES, PCE
 
 [x] readme.md
 
@@ -20,3 +20,16 @@
 
 
 [x] Output to wav file for debugging purposes (in example, not in library).
+
+
+# Bare metal goals (not priority)
+
+[x] Convert all f64 to f32. Every new note or sound played usually means resetting time to zero, so it's unlikely it will ever become a precision issue. That said, don't forget to reset the time on every new sound!
+
+[ ] Remove all uses of Vec, use const generics for:
+    [ ] Hard limits on wavetable array size.
+    [ ] Hard limit of number of channels.
+
+[?] Uf16 Struct to set/get u16 values from an f32 in the 0.0 to 1.0 range.
+
+[?] If16 Struct to set/get i16 values from an f32 in the -1.0 to 1.0 range.

@@ -15,7 +15,7 @@ fn main() -> SdlResult {
     app.audio_start();
 
     let mix_rate = app.audio_mixrate();
-    let mut chip = SoundChip::new(mix_rate);
+    let mut chip = SoundChip::new_msx(mix_rate);
 
     println!("Use up and down arrows to change octaves.");
     println!("Use left and right arrows to play different notes.");
@@ -23,7 +23,7 @@ fn main() -> SdlResult {
 
     // Add channel
     let ch = 0;
-    chip.channels.push(Channel::default());
+    // chip.channels.push(Channel::default());
     if let Some(channel) = chip.channels.get_mut(ch) {
         channel.volume_env = Some(ENV_PIANO);
         channel.pitch_env = Some(ENV_LINEAR_DECAY.offset(-1.0));
@@ -58,23 +58,27 @@ fn main() -> SdlResult {
             let midi_note = math::get_midi_note(octave, note) as f32;
             // Play notes, change pitch
             if app.gamepad.is_just_pressed(Button::Up) {
-                channel.set_note(octave + 1, note, false);
-                channel.reset_envelopes();
+                channel.set_note(octave + 1, note);
+                // channel.reset_envelopes();
+                channel.reset_time();
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
-                channel.set_note(octave - 1, note, false);
-                channel.reset_envelopes();
+                channel.set_note(octave - 1, note);
+                // channel.reset_envelopes();
+                channel.reset_time();
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Right) {
-                channel.set_midi_note(midi_note + 1.0, false);
-                channel.reset_envelopes();
+                channel.set_midi_note(midi_note + 1.0);
+                // channel.reset_envelopes();
+                channel.reset_time();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Left) {
-                channel.set_midi_note(midi_note - 1.0, false);
-                channel.reset_envelopes();
+                channel.set_midi_note(midi_note - 1.0);
+                // channel.reset_envelopes();
+                channel.reset_time();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
         }

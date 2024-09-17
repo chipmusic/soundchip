@@ -1,4 +1,4 @@
-use soundchip::math::{quantize_range_f32, remap_range};
+use soundchip::math::{quantize_range, remap_range};
 
 #[test]
 fn quantization_test() {
@@ -7,7 +7,7 @@ fn quantization_test() {
     let steps = 5;
     for n in -10 ..= 10 {
         let value = n as f32 / 10.0;
-        let result = quantize_range_f32(value, steps, -1.0 ..= 1.0);
+        let result = quantize_range(value, steps, -1.0 ..= 1.0);
         if result != last_value {
             last_value = result;
             value_count += 1;

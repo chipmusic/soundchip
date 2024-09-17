@@ -15,7 +15,7 @@ impl Default for PanSpecs {
 
 impl PanSpecs {
     pub fn psg() -> Self {
-        Self { steps: Some(0) }
+        Self { steps: Some(16) }
     }
 
     pub fn scc() -> Self {

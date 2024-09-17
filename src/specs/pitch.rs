@@ -57,7 +57,7 @@ impl PitchSpecs {
     //         // Optional Quantize
     //         if let Some(steps) = self.steps {
     //             let range = max - min;
-    //             let size = range / steps as f32;
+    //             let size = range / steps ;
     //             value = quantize_f32(value, size);
     //             // println!("quantizing to {size}");
     //         }

@@ -1,5 +1,5 @@
 use core::ops::RangeInclusive;
-use libm::{round, roundf, sinf};
+use libm::{roundf, sinf};
 
 #[inline(always)]
 pub(crate) fn lerp(start: f32, end: f32, t: f32) -> f32 {
@@ -38,11 +38,11 @@ pub fn remap_range(value:f32, in_range:&RangeInclusive<f32>, out_range:&RangeInc
 
 
 #[inline(always)]
-pub fn quantize_f32(value: f32, size: f32) -> f32 {
+pub fn quantize(value: f32, size: f32) -> f32 {
     roundf(value / size) * size
 }
 
-pub fn quantize_range_f32(value: f32, steps: u16, range: RangeInclusive<f32>) -> f32 {
+pub fn quantize_range(value: f32, steps: u16, range: RangeInclusive<f32>) -> f32 {
     // Fewer than two steps returns zero, useful in setting the pan
     if steps < 2 {
         return 0.0;
@@ -50,29 +50,29 @@ pub fn quantize_range_f32(value: f32, steps: u16, range: RangeInclusive<f32>) ->
     let steps = steps - 1;
     let min = *range.start();
     let max = *range.end();
-    let step_size = (max - min) / (steps as f32);
+    let step_size = (max - min) / steps as f32;
     // Find the nearest step by dividing the clamped value by step size, rounding it, and multiplying back
     let quantized_value = (roundf((value - min) / step_size) * step_size) + min;
     // Ensure the result is within the range after quantization
     quantized_value.clamp(min, max)
 }
 
-#[inline(always)]
-pub fn quantize_f64(value: f64, size: f64) -> f64 {
-    round(value / size) * size
-}
+// #[inline(always)]
+// pub fn quantize_f64(value: f64, size: f64) -> f64 {
+//     round(value / size) * size
+// }
 
-pub fn quantize_range_f64(value: f64, steps: u16, range: RangeInclusive<f64>) -> f64 {
-    // Fewer than two steps returns zero, useful in setting the pan
-    if steps < 2 {
-        return 0.0;
-    }
-    let steps = steps - 1;
-    let min = *range.start();
-    let max = *range.end();
-    let step_size = (max - min) / (steps as f64);
-    // Find the nearest step by dividing the clamped value by step size, rounding it, and multiplying back
-    let quantized_value = (round((value - min) / step_size) * step_size) + min;
-    // Ensure the result is within the range after quantization
-    quantized_value.clamp(min, max)
-}
+// pub fn quantize_range_f64(value: f64, steps: u16, range: RangeInclusive<f64>) -> f64 {
+//     // Fewer than two steps returns zero, useful in setting the pan
+//     if steps < 2 {
+//         return 0.0;
+//     }
+//     let steps = steps - 1;
+//     let min = *range.start();
+//     let max = *range.end();
+//     let step_size = (max - min) / steps as f64;
+//     // Find the nearest step by dividing the clamped value by step size, rounding it, and multiplying back
+//     let quantized_value = (round((value - min) / step_size) * step_size) + min;
+//     // Ensure the result is within the range after quantization
+//     quantized_value.clamp(min, max)
+// }

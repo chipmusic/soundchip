@@ -12,7 +12,7 @@ pub struct SoundChip {
     /// Vector containing sound channels. You can directly manipulate it to add/remove channels.
     pub channels: Vec<Channel>,
     sample_head: usize,
-    last_sample_time: f64,
+    last_sample_time: f32,
 }
 
 impl Default for SoundChip {
@@ -75,7 +75,8 @@ impl SoundChip {
     /// Initializes every channel, and optionally starts playing them.
     pub fn channel_init_all(&mut self, play: bool) {
         for channel in &mut self.channels {
-            channel.set_note(4, Note::C, true);
+            channel.reset_time();
+            channel.set_note(4, Note::C);
             if play {
                 channel.play()
             } else {
@@ -106,7 +107,7 @@ impl SoundChip {
         let mut left: f32 = 0.0;
         let mut right: f32 = 0.0;
 
-        let time = self.sample_head as f64 / self.sample_rate as f64;
+        let time = self.sample_head as f32/ self.sample_rate as f32;
         let delta_time = time - self.last_sample_time;
         self.last_sample_time = time;
 
