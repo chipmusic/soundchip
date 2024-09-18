@@ -6,7 +6,7 @@ use core::ops::RangeInclusive;
 
 /// The processing specs for pitch values. Usually Tone and Noise will have different pitch specs.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PitchSpecs {
+pub struct SpecsPitch {
     /// Fixed multiplier.
     pub multiplier: f32,
     /// Optional clamp range.
@@ -16,7 +16,7 @@ pub struct PitchSpecs {
     pub steps: Option<u16>,
 }
 
-impl Default for PitchSpecs {
+impl Default for SpecsPitch {
     fn default() -> Self {
         Self {
             multiplier: 1.0,
@@ -26,7 +26,7 @@ impl Default for PitchSpecs {
     }
 }
 
-impl PitchSpecs {
+impl SpecsPitch {
 
     pub fn psg() -> Self {
         Self {

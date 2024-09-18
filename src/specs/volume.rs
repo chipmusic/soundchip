@@ -1,6 +1,6 @@
 /// The processing specs for volume values.
 #[derive(Debug, Clone, PartialEq)]
-pub struct VolumeSpecs {
+pub struct SpecsVolume {
     /// The maximum number of volume states the chip can render, i.e. 4 bit volume register = 16 steps.
     pub steps: Option<u16>,
     /// Values above 0.0 cause the signal to go drift back to zero after channel is playing. Higher values
@@ -16,7 +16,7 @@ pub struct VolumeSpecs {
     pub prevent_negative_values: bool,
 }
 
-impl Default for VolumeSpecs {
+impl Default for SpecsVolume {
     fn default() -> Self {
         Self {
             steps: Some(16),
@@ -28,7 +28,7 @@ impl Default for VolumeSpecs {
     }
 }
 
-impl VolumeSpecs {
+impl SpecsVolume {
     pub fn psg() -> Self {
         Self {
             steps: Some(16),

@@ -1,7 +1,7 @@
 /// Controls the wavetable length, quantization and looping. SoundChip always uses a wavetable, even
 /// for square waves.
 #[derive(Debug, Clone, PartialEq)]
-pub struct WavetableSpecs {
+pub struct SpecsWavetable {
     /// The length of the wavetable (how many samples per cycle)
     pub sample_count: usize,
     /// TODO: This will need a LoopKind enum.
@@ -11,7 +11,7 @@ pub struct WavetableSpecs {
     pub steps: Option<u16>,
 }
 
-impl Default for WavetableSpecs {
+impl Default for SpecsWavetable {
     fn default() -> Self {
         Self {
             steps: Some(16),
@@ -21,7 +21,7 @@ impl Default for WavetableSpecs {
     }
 }
 
-impl WavetableSpecs {
+impl SpecsWavetable {
     pub fn psg() -> Self {
         Self {
             steps: Some(2),

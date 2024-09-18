@@ -15,7 +15,7 @@ fn main() -> SdlResult {
     app.audio_start();
 
     let mix_rate = app.audio_mixrate();
-    let mut chip = SoundChip::new_msx(mix_rate);
+    let mut chip = SoundChip::new(mix_rate);
 
     println!("Use up and down arrows to change octaves.");
     println!("Use left and right arrows to play different notes.");
@@ -23,7 +23,7 @@ fn main() -> SdlResult {
 
     // Add channel
     let ch = 0;
-    // chip.channels.push(Channel::default());
+    chip.channels.push(Channel::default());
     if let Some(channel) = chip.channels.get_mut(ch) {
         channel.volume_env = Some(ENV_PIANO);
         channel.pitch_env = Some(ENV_LINEAR_DECAY.offset(-1.0));

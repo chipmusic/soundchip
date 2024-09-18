@@ -22,6 +22,10 @@ pub struct Channel {
     pub volume_env: Option<Envelope>,
     volume: f32,
     volume_attn: f32,
+    // Volume tremolo
+    // tremolo_steps:Option<u16>,
+    // tremolo_depth:f32,
+    // tremoloe_frequency:f32,
     // Pitch
     /// Optional pitch envelope. range is -1.0 ..= 1.0, multiplied by pitch_env_multiplier.
     /// Resulting value is added to the current note in MIDI note range (C4 = 60.0).
@@ -35,7 +39,7 @@ pub struct Channel {
     noise_period: f32,
     noise_output: f32,
     // State
-    specs: ChipSpecs,
+    specs: SpecsChip,
     pan: f32,
     midi_note: f32,
     playing: bool,
@@ -46,8 +50,8 @@ pub struct Channel {
 
 }
 
-impl From<ChipSpecs> for Channel {
-    fn from(specs: ChipSpecs) -> Self {
+impl From<SpecsChip> for Channel {
+    fn from(specs: SpecsChip) -> Self {
         let mut result = Self {
             // Timing
             time: 0.0,
@@ -88,31 +92,31 @@ impl From<ChipSpecs> for Channel {
 
 impl Default for Channel {
     fn default() -> Self {
-        Self::from(ChipSpecs::default())
+        Self::from(SpecsChip::default())
     }
 }
 
 impl Channel {
     /// Creates a new channel configured with a square wave.
     pub fn new_psg(allow_noise: bool) -> Self {
-        let specs = ChipSpecs {
-            wavetable: WavetableSpecs::psg(),
-            pan: PanSpecs::psg(),
-            pitch: PitchSpecs::psg(),
-            volume: VolumeSpecs::psg(),
-            noise: NoiseSpecs::psg(allow_noise),
+        let specs = SpecsChip {
+            wavetable: SpecsWavetable::psg(),
+            pan: SpecsPan::psg(),
+            pitch: SpecsPitch::psg(),
+            volume: SpecsVolume::psg(),
+            noise: SpecsNoise::psg(allow_noise),
         };
         Self::from(specs)
     }
 
     /// Creates a new channel configured with a 32 byte wavetable
     pub fn new_scc() -> Self {
-        let specs = ChipSpecs {
-            wavetable: WavetableSpecs::scc(),
-            pan: PanSpecs::scc(),
-            pitch: PitchSpecs::scc(),
-            volume: VolumeSpecs::scc(),
-            noise: NoiseSpecs::None,
+        let specs = SpecsChip {
+            wavetable: SpecsWavetable::scc(),
+            pan: SpecsPan::scc(),
+            pitch: SpecsPitch::scc(),
+            volume: SpecsVolume::scc(),
+            noise: SpecsNoise::None,
         };
         Self::from(specs)
     }
@@ -137,7 +141,7 @@ impl Channel {
     }
 
     /// The virtual Chip specs used in this channel.
-    pub fn specs(&self) -> &ChipSpecs {
+    pub fn specs(&self) -> &SpecsChip {
         &self.specs
     }
 
@@ -195,7 +199,7 @@ impl Channel {
     }
 
     /// TODO: Better noise Rng per noise settings
-    pub fn set_specs(&mut self, specs: ChipSpecs) {
+    pub fn set_specs(&mut self, specs: SpecsChip) {
         self.rng = Self::get_rng(&specs);
         self.specs = specs;
     }
@@ -215,13 +219,13 @@ impl Channel {
     }
 
     /// A value between 0.0 and 1.0. It will be quantized, receive a fixed gain and
-    /// mapped to an exponential curve, according to the ChipSpecs.
+    /// mapped to an exponential curve, according to the SpecsChip.
     pub fn set_volume(&mut self, volume: f32) {
         self.volume = volume.clamp(0.0, 16.0);
         self.calculate_multipliers();
     }
 
-    /// Stereo panning, from left (-1.0) to right (1.0). Centered is zero. Will be quantized per ChipSpecs.
+    /// Stereo panning, from left (-1.0) to right (1.0). Centered is zero. Will be quantized per SpecsChip.
     pub fn set_pan(&mut self, pan: f32) {
         self.pan = pan;
         self.calculate_multipliers();
@@ -229,7 +233,7 @@ impl Channel {
 
     /// Switches channel between tone and noise generation, if specs allow noise.
     pub fn set_noise(&mut self, state: bool) {
-        if self.specs.noise != NoiseSpecs::None {
+        if self.specs.noise != SpecsNoise::None {
             self.noise_on = state;
         }
     }
@@ -261,9 +265,9 @@ impl Channel {
             // Adjust time to ensure continuous change (instead of abrupt change)
             self.time = previous_phase * self.period;
         };
-        // NoiseSpecs
+        // SpecsNoise
         match &self.specs.noise {
-            NoiseSpecs::Random { pitch, .. } | NoiseSpecs::Melodic { pitch, .. } => {
+            SpecsNoise::Random { pitch, .. } | SpecsNoise::Melodic { pitch, .. } => {
                 if let Some(steps) = &pitch.steps {
                     let freq_range = if let Some(range) = &pitch.range {
                         *range.start() ..=*range.end()
@@ -318,8 +322,8 @@ impl Channel {
 
         // Generate noise level, will be mixed later
         self.noise_output = match &self.specs.noise {
-            NoiseSpecs::None => 0.0,
-            NoiseSpecs::Random { volume_steps, .. } | NoiseSpecs::Melodic { volume_steps, .. } => {
+            SpecsNoise::None => 0.0,
+            SpecsNoise::Random { volume_steps, .. } | SpecsNoise::Melodic { volume_steps, .. } => {
                 if self.time_noise >= noise_period {
                     self.time_noise = 0.0;
                     (quantize_range(self.rng.next_f32(), *volume_steps, 0.0..=1.0) * 2.0) - 1.0
@@ -327,7 +331,7 @@ impl Channel {
                     self.noise_output
                 }
             }
-            NoiseSpecs::WaveTable { .. } => 0.0,
+            SpecsNoise::WaveTable { .. } => 0.0,
         };
 
         // Determine wavetable index
@@ -410,17 +414,17 @@ impl Channel {
     }
 
     // New Rng from specs
-    fn get_rng(specs: &ChipSpecs) -> Rng {
+    fn get_rng(specs: &SpecsChip) -> Rng {
         match specs.noise {
-            NoiseSpecs::None | NoiseSpecs::Random { .. } | NoiseSpecs::WaveTable { .. } => {
+            SpecsNoise::None | SpecsNoise::Random { .. } | SpecsNoise::WaveTable { .. } => {
                 Rng::new(16, 1)
             }
-            NoiseSpecs::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
+            SpecsNoise::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
         }
     }
 
     // New Wavetable Vec from specs
-    fn get_wavetable(specs: &ChipSpecs) -> Vec<f32> {
+    fn get_wavetable(specs: &SpecsChip) -> Vec<f32> {
         (0..specs.wavetable.sample_count)
             .map(|i| {
                 // Default sine wave

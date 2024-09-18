@@ -4,12 +4,12 @@ _Pardon the mess, this is a work-in-progress. API changes are still frequent._
 
 The SoundChip struct contains multiple channels, each with configurable settings that can replicate old audio chips like PSGs and simple wave table chips. It doesn't require the standard library, but it still requires allocation to use Vecs which means it may not be used in some strict, bare metal cases. This requirement may be removed in the future, making it more strictly "no_std".
 
-Soundchip is **_not_** an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the ChipSpecs struct may look like this:
+Soundchip is **_not_** an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the SpecsChip struct may look like this:
 
 ```rust
 use soundchip::*;
-let msx_spec = ChipSpecs {
-    wavetable: WavetableSpecs {
+let msx_spec = SpecsChip {
+    wavetable: SpecsWavetable {
         // Square wave (two steps, sample output is always -1.0 or 1.0).
         steps: Some(2),
         // 8 samples would also allow "duty cycle" for the square wave
@@ -20,16 +20,16 @@ let msx_spec = ChipSpecs {
     },
     // Some(0) forces the quantization to always zero (mono).
     // "None" would mean "no quantization".
-    pan: PanSpecs {
+    pan: SpecsPan {
         steps: Some(0),
     },
     // Just an approximation, 4096 pitch steps in 10 octaves.
-    pitch: PitchSpecs {
+    pitch: SpecsPitch {
         multiplier: 1.0,
         range: Some(16.35 ..= 16744.04),
         steps: Some(4096),
     },
-    volume: VolumeSpecs {
+    volume: SpecsVolume {
         // Quantized to 16 volume levels. Also affects volume envelope.
         steps: Some(16),
         // Volume declines on every sample, and resets when the wavetable changes value.
@@ -42,11 +42,11 @@ let msx_spec = ChipSpecs {
         prevent_negative_values: true,
     },
     // Noise settings.
-    noise: NoiseSpecs::Random {
+    noise: SpecsNoise::Random {
         // 2 steps means a square wave (1 bit noise).
         volume_steps: 2,
         // "Maps" a C3 to G#5 range to a much higher noise frequency,
-        pitch: PitchSpecs {
+        pitch: SpecsPitch {
             multiplier: 55.0,
             steps: Some(32),
             range: Some(130.81 ..= 783.99), // C3 to G#5
