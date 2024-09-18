@@ -1,6 +1,7 @@
 use crate::*;
 
 const MAX_I16: f32 = (i16::MAX - 1) as f32;
+const MIX_COMPRESSION: f32 = 1.6;
 
 /// Contains multiple sound channels, and can render and mix them all at once.
 pub struct SoundChip {
@@ -8,7 +9,7 @@ pub struct SoundChip {
     /// but can be lower for improved performance. Usually 44100 or 48000.
     pub sample_rate: u32,
     /// Applies a correction per channel to help avoid clipping the samples beyond -1.0 to 1.0.
-    pub auto_prevent_clipping: bool,
+    // pub auto_prevent_clipping: bool,
     /// Vector containing sound channels. You can directly manipulate it to add/remove channels.
     pub channels: Vec<Channel>,
     sample_head: usize,
@@ -20,7 +21,7 @@ impl Default for SoundChip {
         Self {
             channels: Vec::new(),
             sample_rate: 44100,
-            auto_prevent_clipping: true,
+            // auto_prevent_clipping: true,
             sample_head: 0,
             last_sample_time: 0.0,
         }
@@ -118,16 +119,9 @@ impl SoundChip {
         }
 
         self.sample_head += 1;
-        // TODO: Move out of this function
-        let vol = if self.auto_prevent_clipping {
-            self.channels.len() as f32 * (2.0 / 3.0)
-        } else {
-            2.0
-        };
-
         Sample {
-            left: (compress_volume(left, vol).clamp(-1.0, 1.0) * MAX_I16) as i16,
-            right: (compress_volume(right, vol).clamp(-1.0, 1.0) * MAX_I16) as i16,
+            left: (compress_volume(left, MIX_COMPRESSION).clamp(-1.0, 1.0) * MAX_I16) as i16,
+            right: (compress_volume(right, MIX_COMPRESSION).clamp(-1.0, 1.0) * MAX_I16) as i16,
         }
     }
 }

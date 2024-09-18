@@ -1,4 +1,4 @@
-use presets::{ENV_LINEAR_DECAY, ENV_PIANO};
+use presets::ENV_LINEAR_DECAY;
 use std::{env::var_os, path::PathBuf};
 use hound::{WavSpec, WavWriter};
 use soundchip::*;
@@ -6,7 +6,7 @@ use mini_sdl::*;
 
 fn main() -> SdlResult {
     // I have this path set to a ram disk on my machine,
-    // since I'm saving the wave file for debugging purposes only.
+    // since I'm saving the wave file for debugging purposes.
     let target_file: PathBuf = var_os("CARGO_MANIFEST_DIR").unwrap().into();
     let target_file = target_file.join("target/output.wav");
     println!("Saving wav file to: {:?}", target_file);
@@ -25,7 +25,7 @@ fn main() -> SdlResult {
     let ch = 0;
     chip.channels.push(Channel::default());
     if let Some(channel) = chip.channels.get_mut(ch) {
-        channel.volume_env = Some(ENV_PIANO);
+        channel.volume_env = Some(ENV_LINEAR_DECAY);
         channel.pitch_env = Some(ENV_LINEAR_DECAY.offset(-1.0));
         channel.pitch_env_multiplier = 8.0; //plus or minus 3 full octaves (2 to the power of 3)
         channel.play();

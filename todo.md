@@ -1,5 +1,8 @@
 # TO DO:
 
+[x] Optimizations
+    [x] Optional envelope processing rate: will move some of the calculations out of the "hot" sample function, calculations that will only be performed tipically at 60 Hz like in early 1980's games.
+
 [.] Envelopes
     [ ] Add parameter to "envelope.process()" so that the envelope "knows" if the current sample is a new wavetable cycle, and only changes state on new cycles to avoid curve discontinuity
 
