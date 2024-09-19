@@ -1,7 +1,7 @@
-use std::{env::var_os, path::PathBuf};
 use hound::{WavSpec, WavWriter};
-use soundchip::{prelude::*, presets::*, math::*};
 use mini_sdl::*;
+use soundchip::{math::*, prelude::*, presets::*};
+use std::{env::var_os, path::PathBuf};
 
 fn main() -> SdlResult {
     // I have this path set to a ram disk on my machine,
@@ -20,15 +20,30 @@ fn main() -> SdlResult {
     println!("Use left and right arrows to play different notes.");
     println!("Hit return to toggle noise/tone .");
 
-    // Add channel
+    // Add and configure channel with custom specs (PSG wave, TIA-like noise)
     let ch = 0;
     chip.channels.push(Channel::default());
     if let Some(channel) = chip.channels.get_mut(ch) {
-        channel.volume_env = Some(ENV_LINEAR_DECAY);
-        channel.pitch_env = Some(ENV_LINEAR_DECAY.offset(-1.0));
-        channel.pitch_env_multiplier = 8.0; //plus or minus 3 full octaves (2 to the power of 3)
-        channel.play();
+        channel.set_specs(SpecsChip {
+            wavetable: SpecsWavetable::psg(),
+            pan: SpecsPan::psg(),
+            pitch: SpecsPitch::psg(),
+            volume: SpecsVolume::default(),
+            noise: SpecsNoise::default(),
+        });
+        // channel.envelope_rate = None;
+        channel.volume_env = Some(ENVELOPE_LINEAR.scale_time(2.0));
+        channel.tremolo = Some(TREMOLO_SUBTLE);
+        channel.vibratto = Some(VIBRATTO_SUBTLE);
+        // channel.pitch_env = Some(
+        //     ENVELOPE_LINEAR
+        //         .scale_time(2.0)
+        //         .offset(-1.0)           // Offset before scaling to fit values in 0 to -1
+        //         .scale_values(2.0)      // Scale pushes the max values to -2
+        // );
+        // println!("{:#?}", channel.pitch_env);
         channel.set_noise(true);
+        channel.play();
     }
 
     // Writing in mono for debugging simplicity. Ensure no pan is set in the channel!
@@ -82,6 +97,7 @@ fn main() -> SdlResult {
             }
         }
 
+        // Write audio samples to mini_sdl
         let mut audio_input = app.audio_device.lock();
         let sample_count = audio_input.frames_available();
         for sample in chip.iter(sample_count) {

@@ -1,18 +1,18 @@
 # TO DO:
 
-[ ] Prelude module with all public types, but no sub-modules (like math and rng).
-
-[x] Optimizations
-    [x] Optional envelope processing rate: will move some of the calculations out of the "hot" sample function, calculations that will only be performed tipically at 60 Hz like in early 1980's games.
+[ ] Additional presets: NES, PCE
 
 [.] Envelopes
     [ ] Add parameter to "envelope.process()" so that the envelope "knows" if the current sample is a new wavetable cycle, and only changes state on new cycles to avoid curve discontinuity
 
-[ ] Additional channel processing:
-    [ ] Vibratto (pitch)
-    [ ] Tremolo (volume)
+[x] Prelude module with all public types, but no secondary modules (like math and rng).
 
-[ ] Additional presets: NES, PCE
+[x] Optimizations
+    [x] Optional envelope processing rate: will move some of the calculations out of the "hot" sample function, calculations that will only be performed tipically at 60 Hz like in early 1980's games.
+
+[x] Additional channel processing:
+    [x] Vibratto (pitch)
+    [x] Tremolo (volume)
 
 [x] readme.md
 
@@ -29,7 +29,7 @@
 
 # Bare metal goals (not priority)
 
-[x] Convert all f64 to f32. Every new note or sound played usually means resetting time to zero, so it's unlikely it will ever become a precision issue. That said, don't forget to reset the time on every new sound!
+[x] Convert all f64 to f32. Every new note or sound played usually means resetting time to zero, so it's unlikely it will ever become a precision issue. That said, don't forget to reset the time on every new sound! Exception: global "time()" function in SoundChip. It is calculated from a usize value and does not reset per sound, so casting to f32 could be too imprecise.
 
 [ ] Remove all uses of Vec, use const generics for:
     [ ] Hard limits on wavetable array size.

@@ -26,15 +26,14 @@ pub enum SpecsNoise {
 }
 
 impl Default for SpecsNoise {
-    /// Returns a TIA-like, metalic soundng noise profile.
+    /// Returns a TIA-like, metalic sounding noise profile but with relaxed pitch restrictions.
     fn default() -> Self {
         Self::Melodic {
             lfsr_length: 5,
             volume_steps: 2,
             pitch: SpecsPitch {
                 multiplier: 5.0,
-                steps: None,
-                range: None,
+                ..Default::default()
             },
         }
     }

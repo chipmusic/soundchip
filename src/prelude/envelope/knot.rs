@@ -11,14 +11,21 @@ impl Knot {
     pub fn offset(self, offset:f32) -> Self {
         Self{
             time: self.time,
-            value: (self.value + offset).clamp(-1.0, 1.0)
+            value: (self.value + offset)
         }
     }
 
-    pub fn scale(self, factor:f32) -> Self {
+    pub fn scale_value(self, factor:f32) -> Self {
         Self{
             time: self.time,
-            value: (self.value * factor).clamp(-1.0, 1.0)
+            value: (self.value * factor)
+        }
+    }
+
+    pub fn scale_time(self, factor:f32) -> Self {
+        Self{
+            time: (self.time * factor),
+            value: self.value
         }
     }
 

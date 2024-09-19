@@ -13,7 +13,7 @@ pub struct SoundChip {
     /// Vector containing sound channels. You can directly manipulate it to add/remove channels.
     pub channels: Vec<Channel>,
     sample_head: usize,
-    last_sample_time: f32,
+    last_sample_time: f64,
 }
 
 impl Default for SoundChip {
@@ -48,9 +48,8 @@ impl SoundChip {
                 })
                 .collect(),
             sample_rate,
-            ..Default::default()
-            // sample_head: 0,
-            // last_sample_time: 0.0,
+            ..Default::default() // sample_head: 0,
+                                 // last_sample_time: 0.0,
         }
     }
 
@@ -67,9 +66,8 @@ impl SoundChip {
                 })
                 .collect(),
             sample_rate,
-            ..Default::default()
-            // sample_head: 0,
-            // last_sample_time: 0.0,
+            ..Default::default() // sample_head: 0,
+                                 // last_sample_time: 0.0,
         }
     }
 
@@ -108,12 +106,12 @@ impl SoundChip {
         let mut left: f32 = 0.0;
         let mut right: f32 = 0.0;
 
-        let time = self.sample_head as f32/ self.sample_rate as f32;
+        let time = self.sample_head as f64 / self.sample_rate as f64;
         let delta_time = time - self.last_sample_time;
         self.last_sample_time = time;
 
         for channel in &mut self.channels {
-            let sample = channel.sample(delta_time);
+            let sample = channel.sample(delta_time as f32); // delta will be always tiny, f32 is fine.
             left += sample.left;
             right += sample.right;
         }
@@ -122,6 +120,23 @@ impl SoundChip {
         Sample {
             left: (compress_volume(left, MIX_COMPRESSION).clamp(-1.0, 1.0) * MAX_I16) as i16,
             right: (compress_volume(right, MIX_COMPRESSION).clamp(-1.0, 1.0) * MAX_I16) as i16,
+        }
+    }
+
+    /// This is the only f64 value, calculated from an internal usize integer.
+    /// Unlike the channel time value, this does not reset often.
+    pub fn time(&mut self) -> f64 {
+        self.sample_head as f64 / self.sample_rate as f64
+    }
+
+    /// Stops all channels and resets all timers
+    pub fn reset(&mut self) {
+        self.sample_head = 0;
+        self.last_sample_time = 0.0;
+        for channel in &mut self.channels {
+            channel.stop();
+            channel.set_note(4, Note::C);
+            channel.calculate_multipliers();
         }
     }
 }

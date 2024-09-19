@@ -52,12 +52,22 @@ impl Envelope {
         }
     }
 
-    pub fn scale(self, factor: f32) -> Self {
+    pub fn scale_values(self, factor: f32) -> Self {
         Self {
-            attack: self.attack.scale(factor),
-            decay: self.decay.scale(factor),
-            sustain: self.sustain.scale(factor),
-            release: self.release.scale(factor),
+            attack: self.attack.scale_value(factor),
+            decay: self.decay.scale_value(factor),
+            sustain: self.sustain.scale_value(factor),
+            release: self.release.scale_value(factor),
+            state: self.state,
+        }
+    }
+
+    pub fn scale_time(self, factor: f32) -> Self {
+        Self {
+            attack: self.attack.scale_time(factor),
+            decay: self.decay.scale_time(factor),
+            sustain: self.sustain.scale_time(factor),
+            release: self.release.scale_time(factor),
             state: self.state,
         }
     }

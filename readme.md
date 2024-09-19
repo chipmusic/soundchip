@@ -1,10 +1,10 @@
 **_UPDATE_**:
-Volume and Pitch ADSR envelopes. Vibratto and Tremolo are next.
+Approaching release. Needs testing on a real-world project, which will happen soon, then will move to 1.0!
 _Pardon the mess, this is a work-in-progress. API changes are still frequent._
 
-The SoundChip struct contains multiple channels, each with configurable settings that can replicate old audio chips like PSGs and simple wave table chips. It doesn't require the standard library, but it still requires allocation to use Vecs which means it may not be used in some strict, bare metal cases. This requirement may be removed in the future, making it more strictly "no_std".
+The SoundChip struct contains multiple channels, each with configurable settings that can replicate old audio chips like PSGs and simple wave tables. It is **_not_** an emulator, instead it allows you to customize the sound properties of any sound channel to mimic an old sound chip.
 
-Soundchip is **_not_** an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the SpecsChip struct may look like this:
+For instance, if you're simulating a classic PSG like the AY-3-8910, the SpecsChip struct may look like this:
 
 ```rust
 use soundchip::prelude::*;
@@ -59,8 +59,12 @@ You can use [SoundChip::iter()] to obtain individual samples, which can be pushe
 
 Once you start a channel it will continuously generate a sound with the current settings like pitch, volume and pan. The resulting waveform is then quantized to the chip's specs. Internally it always uses a wavetable - a simple Vec of f32 values - even for a PSG chip, but the quantization steps do a good job of making it sound right.
 
-While the goal is to sound as close as possible to real hardware, this approach will not recreate every tiny quirk. It will, however, sound very close while being more flexible.
+### Design
+
+While the goal is to sound as close as possible to real hardware, this approach will not recreate every tiny quirk. It will, however, sound very convincing while being more flexible. You can remove limitations and use it like a more modern, "tracker-like" wavetable library. Isn't it funny how I'm calling Trackers modern?
 
 Another interesting feature of this design choice is that a single SoundChip can contain channels with entirely different chip specs, as you can see in the [SoundChip::new_msx_scc()] function, which returns a mix of three PSG channels and five SCC channels, which had a small 32 byte wavetable each.
 
 The API is designed to feel simple and modern, and uses functions like [Channel::set_note()] to make it easy to do things like setting the channel pitch instead of directly manipulating the chip's internals.
+
+It doesn't require the standard library, but it still requires allocation to use Vecs which means it may not be used in some strict, bare metal cases. This requirement may be removed in the future, making it more strictly "no_std".
