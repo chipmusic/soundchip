@@ -43,7 +43,7 @@ fn main() -> SdlResult {
     // Writing in mono for debugging simplicity. Ensure no pan is set in the channel!
     let target_file: Option<PathBuf> = match var_os("CARGO_MANIFEST_DIR") {
         Some(os_var) => {
-            let mut dir: PathBuf = os_var.into();
+            let dir: PathBuf = os_var.into();
             Some(dir.join("target/output.wav"))
         }
         None => None,
