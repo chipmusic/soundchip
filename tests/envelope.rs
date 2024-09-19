@@ -1,4 +1,4 @@
-use soundchip::{Envelope, Knot};
+use soundchip::prelude::{Envelope, Knot};
 
 #[test]
 fn envelope_test() {

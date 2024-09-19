@@ -7,7 +7,7 @@ The SoundChip struct contains multiple channels, each with configurable settings
 Soundchip is **_not_** an emulator, it simply allows you to customize the sound properties of any sound channel to mimic an old sound chip. For instance, if you're simulating a classic PSG like the AY-3-8910, the SpecsChip struct may look like this:
 
 ```rust
-use soundchip::*;
+use soundchip::prelude::*;
 let msx_spec = SpecsChip {
     wavetable: SpecsWavetable {
         // Square wave (two steps, sample output is always -1.0 or 1.0).

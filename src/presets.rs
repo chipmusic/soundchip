@@ -1,4 +1,5 @@
-use super::{Envelope, Knot, EnvelopeState};
+//! A few constant presets. For now it will be just envelopes.
+use crate::prelude::{Envelope, Knot, EnvelopeState};
 
 pub const ENV_PIANO:Envelope = Envelope{
     attack: Knot { time: 0.0, value: 1.0 },

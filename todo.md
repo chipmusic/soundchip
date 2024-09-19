@@ -1,5 +1,7 @@
 # TO DO:
 
+[ ] Prelude module with all public types, but no sub-modules (like math and rng).
+
 [x] Optimizations
     [x] Optional envelope processing rate: will move some of the calculations out of the "hot" sample function, calculations that will only be performed tipically at 60 Hz like in early 1980's games.
 

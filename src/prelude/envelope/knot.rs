@@ -1,4 +1,4 @@
-
+/// A point in an envelope, with its associated time and value.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Knot {
     pub time:f32,

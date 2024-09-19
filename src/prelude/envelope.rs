@@ -4,18 +4,16 @@ pub use knot::*;
 mod state;
 pub use state::*;
 
-pub mod presets;
-
-use crate::{lerp, ChipError};
+use crate::{math::lerp, prelude::ChipError};
 /// A simple ADSR envelope, with values in the range -1.0 to 1.0. Keep values positive for volume envelopes,
 /// but pitch envelopes can have negative values.
 #[derive(Debug, Default, Clone)]
 pub struct Envelope {
     pub state: EnvelopeState,
-    attack: Knot,
-    decay: Knot,
-    sustain: Knot,
-    release: Knot,
+    pub(crate) attack: Knot,
+    pub(crate) decay: Knot,
+    pub(crate) sustain: Knot,
+    pub(crate) release: Knot,
 }
 
 // TODO: sustain:bool, if true prevents Sustain state to change into Release.

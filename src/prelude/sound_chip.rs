@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{math::*, prelude::*, Vec};
 
 const MAX_I16: f32 = (i16::MAX - 1) as f32;
 const MIX_COMPRESSION: f32 = 1.6;

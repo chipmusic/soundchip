@@ -1,6 +1,6 @@
 use libm::powf;
 
-use crate::*;
+use crate::{prelude::*, rng::*, math::*, Vec};
 use core::f32::consts::TAU;
 
 const FREQ_C4: f32 = 261.63;
@@ -270,7 +270,7 @@ impl Channel {
         let note: f32 = note.into();
         self.midi_note = note;
         // Calculate note frequency
-        let frequency = note_to_frequency_f64(note);
+        let frequency = note_to_frequency(note);
         self.period = 1.0 / frequency;
         // Auto reset time if needed
         if !self.specs.wavetable.use_loop || !self.playing {
@@ -480,16 +480,6 @@ impl Channel {
             })
             .collect()
     }
-}
-
-#[inline(always)]
-pub(crate) fn note_to_frequency_f64(note: f32) -> f32 {
-    libm::powf(2.0, (note - 69.0) / 12.0) * 440.0
-}
-
-#[inline(always)]
-pub(crate) fn note_to_frequency_f32(note: f32) -> f32 {
-    libm::powf(2.0, (note - 69.0) / 12.0) * 440.0
 }
 
 #[derive(Default)]

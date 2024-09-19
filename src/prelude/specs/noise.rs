@@ -1,4 +1,4 @@
-use crate::{Note, SpecsPitch};
+use crate::prelude::*;
 
 /// Noise profile.  Controls whether this channel can produce noise.
 /// The frequency multiplier in the "pitch" struct is applied *after* quantizing the pitch,

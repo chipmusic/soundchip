@@ -1,7 +1,6 @@
-use presets::ENV_LINEAR_DECAY;
 use std::{env::var_os, path::PathBuf};
 use hound::{WavSpec, WavWriter};
-use soundchip::*;
+use soundchip::{prelude::*, presets::*, math::*};
 use mini_sdl::*;
 
 fn main() -> SdlResult {
@@ -55,7 +54,7 @@ fn main() -> SdlResult {
             // Get current values
             let octave = channel.octave();
             let note = channel.note();
-            let midi_note = math::get_midi_note(octave, note) as f32;
+            let midi_note = get_midi_note(octave, note) as f32;
             // Play notes, change pitch
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note);
