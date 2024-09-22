@@ -14,6 +14,18 @@ fn main() -> SdlResult {
     println!("Use left and right arrows to play different notes.");
     println!("Hit return to toggle noise/tone .");
 
+    // let mut env_test = Envelope::from(&[
+    //     Knot::new(0.0, 0.0),
+    //     Knot::new(1.0, 5.0),
+    //     Knot::new(2.0, 0.0),
+    // ])
+    // .loop_kind(LoopKind::Repeat);
+    // for t in 0..=70 {
+    //     let t = t as f32 / 10.0;
+    //     let v = env_test.peek(t);
+    //     println!("t:{:.1}, v:{:.1}", t, v);
+    // }
+
     // Add and configure channel with custom specs (PSG wave, TIA-like noise)
     let ch = 0;
     chip.channels.push(Channel::default());
@@ -25,17 +37,18 @@ fn main() -> SdlResult {
             volume: SpecsVolume::default(),
             noise: SpecsNoise::default(),
         });
-        // channel.envelope_rate = None;
-        channel.volume_env = Some(ENVELOPE_LINEAR.scale_time(2.0));
+        channel.volume_env = Some(
+            Envelope::from(KNOTS_PIANO).scale_time(4.0), // .loop_kind(LoopKind::Repeat),
+        );
         channel.tremolo = Some(TREMOLO_SUBTLE);
         channel.vibratto = Some(VIBRATTO_SUBTLE);
         // channel.pitch_env = Some(
-        //     ENVELOPE_LINEAR
+        //     Envelope::from(KNOTS_SAWTOOTH)
         //         .scale_time(2.0)
         //         .offset(-1.0)           // Offset before scaling to fit values in 0 to -1
-        //         .scale_values(2.0)      // Scale pushes the max values to -2
+        //         .scale_values(1.0)      // Scale pushes the max values to -2
         // );
-        // println!("{:#?}", channel.pitch_env);
+        println!("{:#?}", channel.pitch_env);
         channel.set_noise(true);
         channel.play();
     }
@@ -111,7 +124,7 @@ fn main() -> SdlResult {
                 left: sample.left,
                 right: sample.right,
             });
-            if let Some(writer) =&mut  writer {
+            if let Some(writer) = &mut writer {
                 writer
                     .write_sample(i16::from(sample.left))
                     .map_err(|e| e.to_string())?;

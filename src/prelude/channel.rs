@@ -311,7 +311,7 @@ impl Channel {
     fn process_envelopes(&mut self) -> LatestEnvelopes {
         // Adjust volume with envelope
         let mut volume_env = if let Some(env) = &mut self.volume_env {
-            env.process(self.time_env)
+            env.peek(self.time_env)
         } else {
             1.0
         };
@@ -340,7 +340,7 @@ impl Channel {
 
         // Pitch envelope
         let mut pitch_change = if let Some(env) = &mut self.pitch_env {
-            env.process(self.time_env)
+            env.peek(self.time_env)
         } else {
             0.0
         };
@@ -385,7 +385,7 @@ impl Channel {
     }
 
     #[inline(always)]
-    /// Returns the current sample and advances the internal timer.
+    /// Returns the current sample and peeks the internal timer.
     pub(crate) fn sample(&mut self, delta_time: f32) -> Sample<f32> {
         // Always apply attenuation, so that values always drift to zero
         self.wave_out *= self.volume_attn;
@@ -447,7 +447,7 @@ impl Channel {
             }
         }
 
-        // Advance timers
+        // peek timers
         self.time += delta_time;
         self.time_noise += delta_time;
         self.time_env += delta_time;

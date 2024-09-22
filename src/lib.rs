@@ -20,6 +20,9 @@ pub mod prelude {
     mod channel;
     pub use channel::*;
 
+    mod loop_kind;
+    pub use loop_kind::*;
+
     mod sample;
     pub use sample::*;
 
