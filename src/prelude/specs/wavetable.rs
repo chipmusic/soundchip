@@ -37,4 +37,12 @@ impl SpecsWavetable {
             use_loop: true,
         }
     }
+
+    pub fn clean() -> Self {
+        Self{
+            steps: None,
+            sample_count: 256,
+            use_loop: true,
+        }
+    }
 }

@@ -21,4 +21,8 @@ impl SpecsPan {
     pub fn scc() -> Self {
         Self { steps: Some(16) }
     }
+
+    pub fn clean() -> Self {
+        Self { steps: None }
+    }
 }

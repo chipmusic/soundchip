@@ -74,7 +74,7 @@ impl SoundChip {
     /// Initializes every channel, and optionally starts playing them.
     pub fn channel_init_all(&mut self, play: bool) {
         for channel in &mut self.channels {
-            channel.reset_time();
+            channel.reset();
             channel.set_note(4, Note::C);
             if play {
                 channel.play()

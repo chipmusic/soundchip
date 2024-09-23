@@ -3,7 +3,8 @@
 [ ] Additional presets: NES, PCE
 
 [.] Envelopes
-    [.] Eliminate ADSR, move on to Envelopes that can be used anywhere, including for wavetables.
+    [x] Eliminate ADSR, move on to Envelopes that can be used anywhere, including for wavetables.
+--->[.] Evelope "release", allows it to exit loop state past loop_out.
     [ ] Add parameter to "envelope.process()" so that the envelope "knows" if the current sample is a new wavetable cycle, and only changes state on new cycles to avoid curve discontinuity.
     [ ] Wavetables from Envelopes.
     [ ] Loop in, out, release.

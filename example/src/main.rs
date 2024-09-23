@@ -12,6 +12,7 @@ fn main() -> SdlResult {
 
     println!("Use up and down arrows to change octaves.");
     println!("Use left and right arrows to play different notes.");
+    println!("Hold the arrow keys to sustain, let them go to release.");
     println!("Hit return to toggle noise/tone .");
 
     // let mut env_test = Envelope::from(&[
@@ -28,29 +29,27 @@ fn main() -> SdlResult {
 
     // Add and configure channel with custom specs (PSG wave, TIA-like noise)
     let ch = 0;
-    chip.channels.push(Channel::default());
+    chip.channels.push(Channel::new_clean());
     if let Some(channel) = chip.channels.get_mut(ch) {
-        channel.set_specs(SpecsChip {
-            wavetable: SpecsWavetable::psg(),
-            pan: SpecsPan::psg(),
-            pitch: SpecsPitch::psg(),
-            volume: SpecsVolume::default(),
-            noise: SpecsNoise::default(),
-        });
-        channel.volume_env = Some(
-            Envelope::from(KNOTS_PIANO).scale_time(4.0), // .loop_kind(LoopKind::Repeat),
+        channel.volume_env = Some(Envelope::from(KNOTS_TEST_LOOP)
+            .scale_time(1.0)
+            .set_loop(LoopKind::LoopPoints {
+                loop_in: 1,
+                loop_out: 1,
+            }),
         );
         channel.tremolo = Some(TREMOLO_SUBTLE);
         channel.vibratto = Some(VIBRATTO_SUBTLE);
         // channel.pitch_env = Some(
         //     Envelope::from(KNOTS_SAWTOOTH)
-        //         .scale_time(2.0)
+        //         .scale_time(4.0)
         //         .offset(-1.0)           // Offset before scaling to fit values in 0 to -1
-        //         .scale_values(1.0)      // Scale pushes the max values to -2
+        //         .scale_values(4.0)      // Scale pushes the max values to -2
         // );
         println!("{:#?}", channel.pitch_env);
-        channel.set_noise(true);
+        // channel.set_noise(true);
         channel.play();
+        channel.release();
     }
 
     // Writing in mono for debugging simplicity. Ensure no pan is set in the channel!
@@ -92,27 +91,35 @@ fn main() -> SdlResult {
             // Play notes, change pitch
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note);
-                // channel.reset_envelopes();
-                channel.reset_time();
+                channel.reset();
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
                 channel.set_note(octave - 1, note);
-                // channel.reset_envelopes();
-                channel.reset_time();
+                channel.reset();
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Right) {
                 channel.set_midi_note(midi_note + 1.0);
-                // channel.reset_envelopes();
-                channel.reset_time();
+                channel.reset();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Left) {
                 channel.set_midi_note(midi_note - 1.0);
-                // channel.reset_envelopes();
-                channel.reset_time();
+                channel.reset();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
+            }
+            if app.gamepad.is_just_released(Button::Up) {
+                channel.release();
+            }
+            if app.gamepad.is_just_released(Button::Down) {
+                channel.release();
+            }
+            if app.gamepad.is_just_released(Button::Right) {
+                channel.release();
+            }
+            if app.gamepad.is_just_released(Button::Left) {
+                channel.release();
             }
         }
 

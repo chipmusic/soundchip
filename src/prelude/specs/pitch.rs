@@ -40,4 +40,12 @@ impl SpecsPitch {
         }
     }
 
+    pub fn clean() -> Self {
+        Self {
+            multiplier: 1.0,
+            range: None,
+            steps: None,
+        }
+    }
+
 }

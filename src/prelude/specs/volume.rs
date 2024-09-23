@@ -48,4 +48,14 @@ impl SpecsVolume {
             prevent_negative_values: false,
         }
     }
+
+    pub fn clean() -> Self {
+        Self {
+            steps: None,
+            attenuation: 0.0,
+            exponent: 2.5,
+            gain: 1.0,
+            prevent_negative_values: false,
+        }
+    }
 }

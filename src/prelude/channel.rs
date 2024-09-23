@@ -100,7 +100,7 @@ impl From<SpecsChip> for Channel {
         };
         result.set_note(4, Note::C);
         result.set_volume(1.0);
-        result.reset_time();
+        result.reset();
         result
     }
 }
@@ -136,6 +136,21 @@ impl Channel {
         Self::from(specs)
     }
 
+    /// Creates a new channel configured without any sort of quantization, which sounds less
+    /// like a 1980's sound chip and more like a 1990's "music-tracker" or like a FM Synth.
+    pub fn new_clean() -> Self {
+        let specs = SpecsChip {
+            wavetable: SpecsWavetable::clean(),
+            pan: SpecsPan::clean(),
+            pitch: SpecsPitch::clean(),
+            volume: SpecsVolume::clean(),
+            noise: SpecsNoise::default(),
+        };
+        let mut result = Self::from(specs);
+        result.envelope_rate = None;
+        result
+    }
+
     /// Allows sound generation on this channel.
     pub fn play(&mut self) {
         self.playing = true;
@@ -145,7 +160,17 @@ impl Channel {
     /// Stops sound generation on this channel.
     pub fn stop(&mut self) {
         self.playing = false;
-        self.reset_time();
+        self.reset();
+    }
+
+    /// "Releases" all envelopes, allowing them to exit their looping state and reach their end
+    pub fn release(&mut self) {
+        if let Some(env) = &mut self.volume_env {
+            env.release();
+        }
+        if let Some(env) = &mut self.pitch_env {
+            env.release();
+        }
     }
 
     /// The current internal time
@@ -199,14 +224,14 @@ impl Channel {
     }
 
     /// Resets al internal timers (tone, noise, envelopes)
-    pub fn reset_time(&mut self) {
+    pub fn reset(&mut self) {
         self.time = 0.0;
         self.time_tone = 0.0;
         self.time_noise = 0.0;
         self.reset_envelopes();
     }
 
-    /// Resets just the envelope timer. Will cause the envelopes' state to revert to "Attack".
+    /// Resets just the envelope timer.
     pub fn reset_envelopes(&mut self) {
         self.time_env = 0.0;
         self.last_env_time = 0.0;
