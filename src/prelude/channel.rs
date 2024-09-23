@@ -46,11 +46,6 @@ pub struct Channel {
     last_sample_index: usize,
     last_sample_value: f32,
     // Envelope processing
-    /// With the default value of Some(60.0) in Hertz, envelopes aren't processed on every sample.
-    /// The last envelope value will be re-used during each period, which is very accurate to how
-    /// many 80's and 90's games processed sound (i.e. once every video frame).
-    /// Affects Volume and Pitch envelopes, as well as tremolo and vibratto.
-    pub envelope_rate: Option<f32>,
     env_period: f32,
     last_env: LatestEnvelopes,
     last_env_time: f32,
@@ -93,7 +88,6 @@ impl From<SpecsChip> for Channel {
             last_sample_index: 0,
             last_sample_value: 0.0,
             // Envelope processing
-            envelope_rate: Some(60.0),
             env_period: 0.0,
             last_env_time: 0.0,
             last_env: LatestEnvelopes::default(),
@@ -115,6 +109,7 @@ impl Channel {
     /// Creates a new channel configured with a square wave.
     pub fn new_psg(allow_noise: bool) -> Self {
         let specs = SpecsChip {
+            envelope_rate: Some(60.0),
             wavetable: SpecsWavetable::psg(),
             pan: SpecsPan::psg(),
             pitch: SpecsPitch::psg(),
@@ -127,6 +122,7 @@ impl Channel {
     /// Creates a new channel configured with a 32 byte wavetable
     pub fn new_scc() -> Self {
         let specs = SpecsChip {
+            envelope_rate: Some(60.0),
             wavetable: SpecsWavetable::scc(),
             pan: SpecsPan::scc(),
             pitch: SpecsPitch::scc(),
@@ -140,15 +136,14 @@ impl Channel {
     /// like a 1980's sound chip and more like a 1990's "music-tracker" or like a FM Synth.
     pub fn new_clean() -> Self {
         let specs = SpecsChip {
+            envelope_rate: None,
             wavetable: SpecsWavetable::clean(),
             pan: SpecsPan::clean(),
             pitch: SpecsPitch::clean(),
             volume: SpecsVolume::clean(),
             noise: SpecsNoise::default(),
         };
-        let mut result = Self::from(specs);
-        result.envelope_rate = None;
-        result
+        Self::from(specs)
     }
 
     /// Allows sound generation on this channel.
@@ -424,7 +419,7 @@ impl Channel {
         }
 
         // Envelope processing
-        if self.envelope_rate.is_some() {
+        if self.specs.envelope_rate.is_some() {
             // If there's an envelope rate, calculate envelopes when needed
             if (self.time - self.last_env_time >= self.env_period) || self.time == 0.0 {
                 self.last_env = self.process_envelopes();
@@ -489,7 +484,7 @@ impl Channel {
         }
 
         // Apply volume and optionally clamp to positive values
-        let output = if self.specs.volume.prevent_negative_values {
+        let output = if self.specs.volume.clip_negative_values {
             self.wave_out.clamp(0.0, 1.0) * self.last_env.volume
         } else {
             self.wave_out * self.last_env.volume
@@ -518,7 +513,7 @@ impl Channel {
         self.left_mult = ((pan - 1.0) / -2.0) * self.specs.volume.gain;
         self.right_mult = ((pan + 1.0) / 2.0) * self.specs.volume.gain;
         // Envelope period
-        if let Some(env_freq) = self.envelope_rate {
+        if let Some(env_freq) = self.specs.envelope_rate {
             self.env_period = 1.0 / env_freq;
         }
     }

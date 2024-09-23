@@ -15,13 +15,6 @@ pub const KNOTS_PIANO:&[Knot] = &[
     Knot{time:1.0, value:0.0, interpolation:Interpolation::Linear},
 ];
 
-pub const KNOTS_TEST_LOOP:&[Knot] = &[
-    Knot{time:0.0, value:1.0, interpolation:Interpolation::Linear},
-    Knot{time:0.5, value:0.5, interpolation:Interpolation::Linear},
-    Knot{time:0.75, value:0.5, interpolation:Interpolation::Linear},
-    Knot{time:1.25, value:0.0, interpolation:Interpolation::Linear},
-];
-
 // Vibratto
 pub const VIBRATTO_SUBTLE:SpecsVibratto = SpecsVibratto{
     steps: Some(16),
@@ -37,13 +30,13 @@ pub const VIBRATTO_INTENSE:SpecsVibratto = SpecsVibratto{
 
 // Tremolo
 pub const TREMOLO_SUBTLE:SpecsTremolo = SpecsTremolo{
-    steps: Some(4),
+    steps: None,
     amplitude: 0.1,
     frequency: 7.5,
 };
 
 pub const TREMOLO_INTENSE:SpecsTremolo = SpecsTremolo{
-    steps: Some(4),
+    steps: None,
     amplitude: 0.2,
     frequency: 15.0,
 };

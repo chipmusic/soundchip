@@ -4,6 +4,8 @@ pub use knot::*;
 mod state;
 pub use state::*;
 
+mod tests;
+
 use crate::{math::lerp, prelude::LoopKind, Vec};
 
 const SAFETY_EPSILON:f32 = f32::EPSILON * 2.0;
@@ -224,19 +226,19 @@ impl Envelope {
     }
 }
 
-pub fn get_loop_position(input_pos: usize, loop_in: usize, loop_out: usize) -> usize {
-    if input_pos > loop_out {
-        let diff = input_pos - loop_out - 1;
-        let width = loop_out - loop_in + 1;
-        if width == 0 {
-            return loop_out
-        }
-        return (diff % width) + loop_in;
-    }
-    input_pos
-}
+// pub(crate) fn get_loop_position(input_pos: usize, loop_in: usize, loop_out: usize) -> usize {
+//     if input_pos > loop_out {
+//         let diff = input_pos - loop_out - 1;
+//         let width = loop_out - loop_in + 1;
+//         if width == 0 {
+//             return loop_out
+//         }
+//         return (diff % width) + loop_in;
+//     }
+//     input_pos
+// }
 
-pub fn get_loop_position_f32(input_pos: f32, loop_in: f32, loop_out: f32) -> f32 {
+pub(crate) fn get_loop_position_f32(input_pos: f32, loop_in: f32, loop_out: f32) -> f32 {
     if input_pos > loop_out {
         let diff = input_pos - loop_out;
         let width = loop_out - loop_in;

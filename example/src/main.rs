@@ -31,7 +31,7 @@ fn main() -> SdlResult {
     let ch = 0;
     chip.channels.push(Channel::new_clean());
     if let Some(channel) = chip.channels.get_mut(ch) {
-        channel.volume_env = Some(Envelope::from(KNOTS_TEST_LOOP)
+        channel.volume_env = Some(Envelope::from(KNOTS_SAWTOOTH)
             .scale_time(1.0)
             .set_loop(LoopKind::LoopPoints {
                 loop_in: 1,

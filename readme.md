@@ -9,6 +9,8 @@ For instance, if you're simulating a classic PSG like the AY-3-8910, the SpecsCh
 ```rust
 use soundchip::prelude::*;
 let msx_spec = SpecsChip {
+    // MSX applications usually processed the audio envelopes once per video frame.
+    envelope_rate: Some(60.0),
     wavetable: SpecsWavetable {
         // Square wave (two steps, sample output is always -1.0 or 1.0).
         steps: Some(2),
@@ -39,7 +41,7 @@ let msx_spec = SpecsChip {
         // Some chips may need custom volume gain to sound more accurate.
         gain: 1.0,
         // Clamps the generated wave into 0.0 to 1.0 values.
-        prevent_negative_values: true,
+        clip_negative_values: true,
     },
     // Noise settings.
     noise: SpecsNoise::Random {

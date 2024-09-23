@@ -13,7 +13,7 @@ pub struct SpecsVolume {
     /// Allows certain chips to sound quieter or louder without affecting the channel's volume setting.
     pub gain: f32,
     /// Certain chips (like the AY-3-8910) appear to only output positive values.
-    pub prevent_negative_values: bool,
+    pub clip_negative_values: bool,
 }
 
 impl Default for SpecsVolume {
@@ -23,7 +23,7 @@ impl Default for SpecsVolume {
             attenuation: 0.001,
             exponent: 2.5,
             gain: 1.0,
-            prevent_negative_values: false,
+            clip_negative_values: false,
         }
     }
 }
@@ -35,7 +35,7 @@ impl SpecsVolume {
             attenuation: 0.0017,
             exponent: 3.0,
             gain: 1.0,
-            prevent_negative_values: true,
+            clip_negative_values: true,
         }
     }
 
@@ -45,7 +45,7 @@ impl SpecsVolume {
             attenuation: 0.0017,
             exponent: 3.0,
             gain: 1.0,
-            prevent_negative_values: false,
+            clip_negative_values: false,
         }
     }
 
@@ -55,7 +55,7 @@ impl SpecsVolume {
             attenuation: 0.0,
             exponent: 2.5,
             gain: 1.0,
-            prevent_negative_values: false,
+            clip_negative_values: false,
         }
     }
 }
