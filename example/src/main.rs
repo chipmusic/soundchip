@@ -46,7 +46,7 @@ fn main() -> SdlResult {
         //         .offset(-1.0)           // Offset before scaling to fit values in 0 to -1
         //         .scale_values(4.0)      // Scale pushes the max values to -2
         // );
-        println!("{:#?}", channel.pitch_env);
+        // println!("{:#?}", channel.pitch_env);
         channel.set_noise(true);
         channel.play();
         channel.release();

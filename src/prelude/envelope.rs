@@ -130,6 +130,16 @@ where
         self
     }
 
+    /// Sorts the knots based on their time.
+    pub fn sort_by_time(&mut self) {
+        self.knots.sort_by(|a, b| {
+            match a.partial_cmp(b){
+                Some(comp) => comp,
+                None => Ordering::Equal
+            }
+        });
+    }
+
     /// Resets the internal timing values. Recommended to be always
     /// called when resetting the channel (channel.reset() calls this automatically on
     /// the volume and pitch envelope).
