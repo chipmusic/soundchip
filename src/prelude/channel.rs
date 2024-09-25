@@ -20,7 +20,7 @@ pub struct Channel {
     period: f32,
     // Volume
     /// Optional volume envelope, range is 0.0 ..= 1.0
-    pub volume_env: Option<Envelope>,
+    pub volume_env: Option<Envelope<Normal>>,
     /// Optional volume tremolo. Acts as a secondary envelope subtracted from the regular volume envelope.
     pub tremolo: Option<SpecsTremolo>,
     volume: f32,
@@ -28,7 +28,7 @@ pub struct Channel {
     // Pitch
     /// Optional pitch envelope. Range -1.0 ..= 1.0 means one octave down or up,
     /// but values can be beyond that range (use "envelope.scale_values(factor)"" to easily change that).
-    pub pitch_env: Option<Envelope>,
+    pub pitch_env: Option<Envelope<f32>>,
     /// Optional pitch vibratto. Acts as a secondary envelope, added to the regular pitch envelope.
     pub vibratto: Option<SpecsVibratto>,
     // Noise
@@ -38,7 +38,7 @@ pub struct Channel {
     noise_output: f32,
     // State
     specs: SpecsChip,
-    pan: f32,
+    pan: NormalSigned,
     midi_note: f32,
     playing: bool,
     left_mult: f32,
@@ -80,7 +80,7 @@ impl From<SpecsChip> for Channel {
             noise_output: 0.0,
             // State
             specs,
-            pan: 0.0,
+            pan: NormalSigned::from(0.0),
             midi_note: 60.0,
             playing: false,
             left_mult: 0.5,
@@ -210,7 +210,7 @@ impl Channel {
 
     /// Current stereo panning. Zero means centered (mono).
     pub fn pan(&self) -> f32 {
-        self.pan
+        self.pan.into()
     }
 
     /// Mutable access to the wavetable. Be careful to not set values beyond -1.0 to 1.0.
@@ -268,7 +268,7 @@ impl Channel {
 
     /// Stereo panning, from left (-1.0) to right (1.0). Centered is zero. Will be quantized per SpecsChip.
     pub fn set_pan(&mut self, pan: f32) {
-        self.pan = pan;
+        self.pan = pan.into();
         self.calculate_multipliers();
     }
 
@@ -505,9 +505,9 @@ impl Channel {
         self.volume_attn = 1.0 - self.specs.volume.attenuation.clamp(0.0, 1.0);
         // Pan quantization
         let pan = if let Some(pan_steps) = self.specs.pan.steps {
-            quantize_range(self.pan, pan_steps, -1.0..=1.0)
+            quantize_range(self.pan.into(), pan_steps, -1.0..=1.0)
         } else {
-            self.pan
+            self.pan.into()
         };
         // Is applying gain to the pan OK? Needs testing
         self.left_mult = ((pan - 1.0) / -2.0) * self.specs.volume.gain;

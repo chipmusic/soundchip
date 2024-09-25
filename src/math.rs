@@ -3,6 +3,8 @@
 use core::ops::RangeInclusive;
 use libm::{roundf, sinf};
 
+use crate::prelude::KnotValue;
+
 /// Returns the MIDI note value given an octave (zero to 10) and a note (zero to 11).
 #[inline(always)]
 pub fn get_midi_note(octave: impl Into<i32>, note: impl Into<i32>) -> i32 {
@@ -19,7 +21,11 @@ pub fn note_to_frequency(note: f32) -> f32 {
 }
 
 #[inline(always)]
-pub fn lerp(start: f32, end: f32, t: f32) -> f32 {
+pub fn lerp<T>(start: T, end: T, t: f32) -> f32
+where T:KnotValue
+{
+    let start:f32 = start.into();
+    let end:f32 = end.into();
     start + t * (end - start)
 }
 

@@ -1,120 +1,168 @@
 mod knot;
-pub use knot::*;
+use std::cmp::Ordering;
 
-mod state;
-pub use state::*;
+pub use knot::*;
 
 mod tests;
 
-use crate::{math::lerp, prelude::LoopKind, Vec};
+use crate::{
+    math::lerp,
+    prelude::{KnotValue, LoopKind},
+    Vec,
+};
 
-const SAFETY_EPSILON:f32 = f32::EPSILON * 2.0;
+const SAFETY_EPSILON: f32 = f32::EPSILON * 2.0;
 
 /// A simple envelope that can be interpolated per knot..
 #[derive(Debug, Clone, PartialEq)]
-pub struct Envelope {
-    pub knots: Vec<Knot>,
+pub struct Envelope<T>
+where
+    T: KnotValue,
+{
+    pub knots: Vec<Knot<T>>,
     pub loop_kind: LoopKind,
     release: bool,
     release_time: Option<f32>,
     head: usize,
-    len: usize,
 }
 
 // TODO: sustain:bool, if true prevents Sustain state to change into Release.
 // Maybe an allow_sustain that sets it to true on resetting, and a release() method to set it to false?
 
-impl Default for Envelope {
+impl<T> Default for Envelope<T>
+where
+    T: KnotValue,
+{
     fn default() -> Self {
+        // Couldn't get "collect()" to work with KnotValue trait.
         let len = 2;
+        let mut knots = Vec::new();
+        for i in 0..len {
+            let time = i as f32 / (len - 1) as f32;
+            knots.push(Knot {
+                time,
+                value: (1.0 - time).into(),
+                interpolation: Interpolation::Linear,
+            });
+        }
         Self {
-            knots: (0..len)
-                .map(|i| {
-                    let time = i as f32 / (len - 1) as f32;
-                    Knot {
-                        time,
-                        value: 1.0 - time,
-                        interpolation: Interpolation::Linear,
-                    }
-                })
-                .collect(),
+            knots,
             head: 0,
             release: false,
             release_time: None,
             loop_kind: LoopKind::None,
-            len,
         }
     }
 }
 
-impl Envelope {
-    pub fn from(source: &[Knot]) -> Self {
+/// Generates a new envelope from a slice of knots. Knots values may be clamped
+/// depending the target envelope's Knot's value type.
+impl<T> From<&[Knot<f32>]> for Envelope<T>
+where
+    T: KnotValue,
+{
+    fn from(source: &[Knot<f32>]) -> Self {
+        // // Couldn't get "collect()" to work with KnotValue trait.
+        let len = source.len();
+        let mut knots = Vec::new();
+        for i in 0..len {
+            let knot = source[i];
+            knots.push(Knot {
+                time: knot.time,
+                value: knot.value.into(),
+                interpolation: knot.interpolation,
+            })
+        }
+        knots.sort_by(|a, b| {
+            match a.partial_cmp(b){
+                Some(comp) => comp,
+                None => Ordering::Equal
+            }
+        });
         Self {
-            knots: Vec::from(source),
-            len: source.len(),
+            knots,
             loop_kind: LoopKind::None,
             release: false,
             release_time: None,
             head: 0,
         }
     }
+}
 
+impl<T> Envelope<T>
+where
+    T: KnotValue,
+{
+    /// The number of knots.
     pub fn len(&self) -> usize {
-        self.len
+        self.knots.len()
     }
 
-    pub fn offset(mut self, offset: f32) -> Self {
+    /// Adds an offset all knot values. Resulting values may be clipped
+    /// depending the target envelope's Knot's value type.
+    pub fn offset(mut self, offset: T) -> Self {
         for knot in &mut self.knots {
-            knot.value += offset
+            *knot = knot.offset(offset);
         }
         self
     }
 
-    pub fn scale_values(mut self, factor: f32) -> Self {
+    /// Multipliesall knot values by a factor. Resulting values may be clipped
+    /// depending the target envelope's Knot's value type.
+    pub fn scale_values(mut self, factor: T) -> Self {
         for knot in &mut self.knots {
-            knot.value *= factor
+            *knot = knot.scale_value(factor);
         }
         self
     }
 
+    /// Multiplies every knot's time by a factor.
     pub fn scale_time(mut self, factor: f32) -> Self {
         for knot in &mut self.knots {
-            knot.time *= factor
+            *knot = knot.scale_time(factor);
         }
         self
     }
 
+    /// Changes the loop kind.
     pub fn set_loop(mut self, kind: LoopKind) -> Self {
         self.loop_kind = kind;
         self
     }
 
+    /// Resets the internal timing values. Recommended to be always
+    /// called when resetting the channel (channel.reset() calls this automatically on
+    /// the volume and pitch envelope).
     pub fn reset(&mut self) {
         self.head = 0;
         self.release = false;
         self.release_time = None;
     }
 
+    /// Releases the envelope, if loop kind is set to "LoopPoints". Does nothing otherwise.
     pub fn release(&mut self) {
-        println!("Released");
+        // println!("Released");
         self.release = true;
     }
 
+    /// Gets the envelope value at "time". Very efficient If the time increments are small,
+    /// will trigger a search for the nearest knotx if current state is too
+    /// far off from the request time.
     pub fn peek(&mut self, time: f32) -> f32 {
-        // println!("peeking t:{}, head:{}", time, self.head);
+        // println!("peeking t:{}, head:{}, repeat:{:?}", time, self.head, self.loop_kind);
         let first_knot = self.knots[0];
         if time <= first_knot.time {
-            return first_knot.value;
+            return first_knot.value.into();
         }
 
-        let last_knot = self.knots[self.len - 1];
+        let last_knot = self.knots[self.knots.len() - 1];
         match self.loop_kind {
             LoopKind::None => {
                 self.peek_without_loop(time, first_knot.time, last_knot.time, last_knot.value)
             }
             LoopKind::Repeat => {
                 if time == last_knot.time {
-                    return last_knot.value;
+                    return last_knot.value.into();
                 }
                 if time > last_knot.time {
                     self.head = 0;
@@ -151,7 +199,12 @@ impl Envelope {
                             time_in
                         }
                     };
-                    self.peek_without_loop(local_time, first_knot.time, last_knot.time, last_knot.value)
+                    self.peek_without_loop(
+                        local_time,
+                        first_knot.time,
+                        last_knot.time,
+                        last_knot.value,
+                    )
                 } else {
                     // println!("Looping with time_out{}", time_out);
                     let loop_t = get_loop_position_f32(time, time_in, time_out);
@@ -162,11 +215,11 @@ impl Envelope {
     }
 
     #[inline(always)]
-    fn peek_without_loop(&mut self, time:f32, time_in:f32, time_out:f32, value_out:f32) -> f32 {
+    fn peek_without_loop(&mut self, time: f32, time_in: f32, time_out: f32, value_out: T) -> f32 {
         // println!("time:{}", time);
         if time >= time_out {
             // println!("time out: {}", time_out);
-            return value_out;
+            return value_out.into();
         }
         let normal_t = get_loop_position_f32(time, time_in, time_out);
         // println!("normal time:{}", normal_t);
@@ -177,9 +230,9 @@ impl Envelope {
     // an unreachable scope if head == len-1.
     fn peek_within_time_range(&mut self, time: f32) -> f32 {
         // "head" should always be valid
-        // println!("Peeking time: {:.2}", time);
+        // println!("Peeking time: {:.3}", time);
         let current = self.knots[self.head];
-        if self.head + 1 < self.len {
+        if self.head + 1 < self.knots.len() {
             // If there's a "next" we still haven't reached last knot
             let next = self.knots[self.head + 1];
             let local_time = time - current.time;
@@ -190,7 +243,7 @@ impl Envelope {
             if local_time > next_time {
                 // Search for the correct knot range
                 let mut low = 0;
-                let mut high = self.len - 1;
+                let mut high = self.knots.len() - 1;
                 while low <= high {
                     self.head = (low + high) / 2;
                     let head_time = self.knots[self.head].time;
@@ -238,12 +291,13 @@ impl Envelope {
 //     input_pos
 // }
 
+///
 pub(crate) fn get_loop_position_f32(input_pos: f32, loop_in: f32, loop_out: f32) -> f32 {
     if input_pos > loop_out {
         let diff = input_pos - loop_out;
         let width = loop_out - loop_in;
         if width < SAFETY_EPSILON {
-            return loop_out
+            return loop_out;
         }
         return (diff % width) + loop_in;
     }

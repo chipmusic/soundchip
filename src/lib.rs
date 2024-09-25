@@ -14,6 +14,9 @@ pub mod presets;
 /// Everything you need to get a SoundChip up and running.
 /// Start witht the SoundChip and Channel structs and go from there.
 pub mod prelude {
+    mod values;
+    pub use values::*;
+
     mod sound_chip;
     pub use sound_chip::*;
 

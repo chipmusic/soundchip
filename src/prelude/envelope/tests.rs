@@ -1,5 +1,6 @@
 #[allow(unused)]
 use crate::{
+    Vec,
     prelude::{get_loop_position_f32, Envelope, Knot, LoopKind},
     math::lerp,
 };
@@ -28,21 +29,21 @@ fn envelope_tests() {
         }
     }
 
-    fn generate(min_time: f32, min_value: f32, max_value: f32, len: usize) -> Envelope {
-        let max_time = min_time + (len - 1) as f32;
-        let env_knots: Vec<Knot> = (0..len)
+    fn generate(min_time: f32, min_value: f32, max_value: f32, len: usize) -> Envelope<f32> {
+        let mut time = min_time;
+        let env_knots: Vec<Knot<f32>> = (0..len)
             .map(|i| {
                 let x = i as f32 / (len - 1) as f32;
-                let time = lerp(min_time, max_time, x);
                 let value = lerp(min_value, max_value, x);
+                time += 1.0;
                 Knot::new(time, value)
             })
             .collect();
         Envelope::from(env_knots.as_slice())
     }
 
-    fn test_envelope(env: Envelope, start_time: f32, end_time: f32, delta: f32) {
-        println!("\nTesting...");
+    fn test_envelope(env: Envelope<f32>, start_time: f32, end_time: f32, delta: f32) {
+        // println!("\nTesting...");
         // println!("\nTesting... {:#.2?}", env);
         let mut env = env;
         let mut time = start_time;
@@ -66,10 +67,10 @@ fn envelope_tests() {
                 local_time - a_time
             );
             let value = env.peek(time);
-            println!(
-                "t:{:.2} -> {:.2},  a:{},  b:{},  v:{:.3},  goal:{:.3}",
-                time, local_time, a, b, value, goal
-            );
+            // println!(
+            //     "t:{:.3} -> {:.3},  a:{},  b:{},  knot_a:{:#.3?}, knot_b:{:#.3?}, v:{:.3},  goal:{:.3}",
+            //     time, local_time, a, b, env.knots[a], env.knots[b], value, goal
+            // );
             assert!((value - goal).abs() < (f32::EPSILON * 2.0));
             time += delta;
         }

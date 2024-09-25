@@ -1,8 +1,14 @@
+use std::cmp::Ordering;
+
+use crate::prelude::KnotValue;
+
 /// A point in an envelope, with its associated time and value.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct Knot {
+pub struct Knot<T>
+where T:KnotValue
+{
     pub time: f32,
-    pub value: f32, // TODO: If16 here
+    pub value: T,
     pub interpolation: Interpolation,
 }
 
@@ -13,9 +19,10 @@ pub enum Interpolation {
     Step,
 }
 
-/// An envelope knot in the range of -1.0 to 1.0.
-impl Knot {
-    pub fn new(time: f32, value: f32) -> Self {
+impl<T> Knot<T>
+where T:KnotValue
+{
+    pub fn new(time: f32, value: T) -> Self {
         Self {
             time,
             value,
@@ -23,16 +30,22 @@ impl Knot {
         }
     }
 
-    pub fn offset(self, offset: f32) -> Self {
+    pub fn offset(self, offset: T) -> Self {
+        let offset:f32 = offset.into();
+        let v:f32 = self.value.into();
+        let value = T::from(v + offset);    // Will clip to valid range
         Self {
-            value: (self.value + offset),
+            value,
             ..self
         }
     }
 
-    pub fn scale_value(self, factor: f32) -> Self {
+    pub fn scale_value(self, factor: T) -> Self {
+        let factor:f32 = factor.into();
+        let v:f32 = self.value.into();
+        let value = T::from(v * factor);    // Will clip to valid range
         Self {
-            value: (self.value * factor),
+            value,
             ..self
         }
     }
@@ -41,6 +54,20 @@ impl Knot {
         Self {
             time: (self.time * factor),
             ..self
+        }
+    }
+}
+
+impl<T> PartialOrd for Knot<T>
+where T: KnotValue
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.time < other.time {
+            Some(Ordering::Less)
+        } else if self.time > other.time {
+            Some(Ordering::Greater)
+        } else {
+            Some(Ordering::Equal)
         }
     }
 }

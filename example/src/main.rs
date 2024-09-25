@@ -27,12 +27,12 @@ fn main() -> SdlResult {
     //     println!("t:{:.1}, v:{:.1}", t, v);
     // }
 
-    // Add and configure channel with custom specs (PSG wave, TIA-like noise)
+    // Add and configure channel with custom specs (sine wave tone, TIA-like noise)
     let ch = 0;
     chip.channels.push(Channel::new_clean());
     if let Some(channel) = chip.channels.get_mut(ch) {
         channel.volume_env = Some(Envelope::from(KNOTS_SAWTOOTH)
-            .scale_time(1.0)
+            .scale_time(0.85)
             .set_loop(LoopKind::LoopPoints {
                 loop_in: 1,
                 loop_out: 1,
@@ -47,7 +47,7 @@ fn main() -> SdlResult {
         //         .scale_values(4.0)      // Scale pushes the max values to -2
         // );
         println!("{:#?}", channel.pitch_env);
-        // channel.set_noise(true);
+        channel.set_noise(true);
         channel.play();
         channel.release();
     }
