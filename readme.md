@@ -7,20 +7,24 @@ The SoundChip struct contains multiple channels, each with configurable settings
 For instance, if you're simulating a classic PSG like the AY-3-8910, the SpecsChip struct may look like this:
 
 ```rust
-use soundchip::prelude::*;
+use soundchip::{prelude::*, presets::*};
 let msx_spec = SpecsChip {
     // MSX applications usually processed the audio envelopes once per video frame.
     envelope_rate: Some(60.0),
     wavetable: SpecsWavetable {
+        // Default PSG wavetable envelope can be anything as long as the first half
+        // is positive and second half is negative (see "steps" below).
+        default_waveform: Some(KNOTS_WAVE_SQUARE),
         // Square wave (two steps, sample output is always -1.0 or 1.0).
         steps: Some(2),
-        // 8 samples would also allow "duty cycle" for the square wave
+        // 8 samples would also allow "duty cycle" for the square wave,
+        // even though this PSG didn't support that.
         sample_count: 8,
         // Ignored for now, the entire wave always loops.
         // May change in the future to allow playing sampled sounds.
         use_loop: true,
     },
-    // Some(0) forces the quantization to always zero (mono).
+    // "Some(0)" forces the quantization to always zero (mono).
     // "None" would mean "no quantization".
     pan: SpecsPan {
         steps: Some(0),

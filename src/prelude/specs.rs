@@ -16,6 +16,8 @@ pub use tremolo::*;
 pub use vibratto::*;
 pub use wavetable::*;
 
+use crate::presets::*;
+
 // Chips
 /// No quantization, which sounds less like a 1980's sound chip and more
 /// like a 1990's "music-tracker" or like an FM Synth.
@@ -78,7 +80,7 @@ pub const SPEC_CHIP_NES_SQUARE:SpecsChip = SpecsChip {
     noise: SpecsNoise::None,
 };
 
-/// 32 x 16 Triangle wave (as long as the envelope is KNOTS_TRIANGLE);
+/// 32 x 16 Triangle wave (as long as the envelope is KNOTS_WAVE_TRIANGLE);
 pub const SPEC_CHIP_NES_TRIANGLE:SpecsChip = SpecsChip {
     envelope_rate: Some(60.0),
     wavetable: SPEC_WAVE_NES_TRIANGLE,
@@ -91,7 +93,7 @@ pub const SPEC_CHIP_NES_TRIANGLE:SpecsChip = SpecsChip {
 /// NES APU Noise.
 pub const SPEC_CHIP_NES_NOISE:SpecsChip = SpecsChip {
     envelope_rate: Some(60.0),
-    wavetable: SPEC_WAVE_NES_SQUARE,
+    wavetable: SPEC_WAVE_FLAT,
     pan: SPEC_PAN_MONO,
     pitch: SPEC_PITCH_PSG,
     volume: SPEC_VOLUME_NES,
@@ -101,7 +103,7 @@ pub const SPEC_CHIP_NES_NOISE:SpecsChip = SpecsChip {
 /// NES APU Noise with setting #2.
 pub const SPEC_CHIP_NES_NOISE_MELODIC:SpecsChip = SpecsChip {
     envelope_rate: Some(60.0),
-    wavetable: SPEC_WAVE_NES_SQUARE,
+    wavetable: SPEC_WAVE_FLAT,
     pan: SPEC_PAN_MONO,
     pitch: SPEC_PITCH_PSG,
     volume: SPEC_VOLUME_NES,
@@ -119,37 +121,50 @@ pub const SPEC_CHIP_NES_DMC:SpecsChip = SpecsChip {
 };
 
 // Wavetable
+pub const SPEC_WAVE_FLAT:SpecsWavetable = SpecsWavetable {
+    default_waveform: Some(KNOTS_FLAT),
+    sample_count: 8,
+    use_loop: true,
+    steps: Some(0),
+};
+
 pub const SPEC_WAVE_CLEAN:SpecsWavetable = SpecsWavetable {
+    default_waveform: Some(KNOTS_WAVE_TRIANGLE),
     sample_count: 256,
     use_loop: true,
     steps: Some(256),
 };
 
 pub const SPEC_WAVE_PSG:SpecsWavetable = SpecsWavetable {
+    default_waveform: Some(KNOTS_WAVE_SQUARE),
     sample_count: 8,
     use_loop: true,
     steps: Some(2),
 };
 
 pub const SPEC_WAVE_SCC:SpecsWavetable = SpecsWavetable {
+    default_waveform: Some(KNOTS_WAVE_TRIANGLE),
     sample_count: 32,
     use_loop: true,
     steps: Some(256),
 };
 
 pub const SPEC_WAVE_PCE:SpecsWavetable = SpecsWavetable {
+    default_waveform: Some(KNOTS_WAVE_TRIANGLE),
     sample_count: 32,
     use_loop: true,
     steps: Some(32),
 };
 
 pub const SPEC_WAVE_NES_SQUARE:SpecsWavetable = SpecsWavetable {
+    default_waveform: Some(KNOTS_WAVE_SQUARE),
     sample_count: 8,
     use_loop: true,
     steps: Some(2),
 };
 
 pub const SPEC_WAVE_NES_TRIANGLE:SpecsWavetable = SpecsWavetable {
+    default_waveform: Some(KNOTS_WAVE_TRIANGLE),
     sample_count: 32,
     use_loop: true,
     steps: Some(16),
@@ -158,6 +173,7 @@ pub const SPEC_WAVE_NES_TRIANGLE:SpecsWavetable = SpecsWavetable {
 /// Needs testing! use_loop doesn't do anything yet.
 /// May need a frequency multiplier to "stretch" the sample when playing C4?
 pub const SPEC_WAVE_NES_DMC:SpecsWavetable = SpecsWavetable {
+    default_waveform: Some(KNOTS_WAVE_TRIANGLE),
     sample_count: 256,
     use_loop: false,
     // In reality, DPCM meant any sample had to be +1 step or -1 step, never the same.
@@ -210,7 +226,7 @@ pub const SPEC_VOLUME_CLEAN:SpecsVolume = SpecsVolume {
 
 pub const SPEC_VOLUME_PSG:SpecsVolume = SpecsVolume {
     steps: Some(16),
-    attenuation: 0.0015,
+    attenuation: 0.001,
     exponent: 3.0,
     gain: 1.0,
     clip_negative_values: true,

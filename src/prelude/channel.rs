@@ -1,6 +1,6 @@
 use libm::powf;
 
-use crate::{math::*, prelude::*, presets::KNOTS_TRIANGLE, rng::*, Vec};
+use crate::{math::*, prelude::*, presets::*, rng::*, Vec};
 use core::f32::consts::TAU;
 
 const FREQ_C4: f32 = 261.63;
@@ -54,7 +54,7 @@ pub struct Channel {
 
 impl From<SpecsChip> for Channel {
     fn from(specs: SpecsChip) -> Self {
-        let wave_env = Envelope::from(KNOTS_TRIANGLE);
+        let wave_env = Envelope::from(KNOTS_WAVE_TRIANGLE);
         let mut result = Self {
             // Timing
             phase: 0.0,
@@ -64,7 +64,7 @@ impl From<SpecsChip> for Channel {
             time_noise: 0.0,
             period: 1.0 / FREQ_C4,
             // Wavetable
-            wavetable: Self::get_wavetable(&specs, &wave_env),
+            wavetable: Self::get_wavetable_from_specs(&specs),
             wave_env,
             wave_out: 0.0,
             // Volume
@@ -204,7 +204,7 @@ impl Channel {
     /// Reconfigures all internals according to new specs
     pub fn set_specs(&mut self, specs: SpecsChip) {
         self.rng = Self::get_rng(&specs);
-        self.wavetable = Self::get_wavetable(&specs, &self.wave_env);
+        self.wavetable = Self::get_wavetable_from_specs(&specs);
         self.specs = specs;
     }
 
@@ -511,7 +511,25 @@ impl Channel {
     }
 
     // New Wavetable Vec from specs
-    fn get_wavetable(specs: &SpecsChip, envelope: &Envelope<NormalSigned>) -> Vec<f32> {
+    fn get_wavetable_from_specs(specs: &SpecsChip) -> Vec<f32> {
+        let mut envelope: Envelope<NormalSigned> =
+            if let Some(knots) = specs.wavetable.default_waveform {
+                knots.into()
+            } else {
+                KNOTS_WAVE_TRIANGLE.into()
+            };
+        (0..specs.wavetable.sample_count)
+            .map(|i| {
+                // Default sine wave
+                let t = i as f32 / specs.wavetable.sample_count as f32;
+                // libm::sinf(t * TAU)
+                envelope.peek(t).into()
+            })
+            .collect()
+    }
+
+    // New Wavetable Vec
+    fn get_wavetable(specs: &SpecsChip, envelope:&Envelope<NormalSigned>) -> Vec<f32> {
         let mut envelope = envelope.clone();
         (0..specs.wavetable.sample_count)
             .map(|i| {

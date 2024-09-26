@@ -1,6 +1,9 @@
 # TO DO:
 
+[ ] Alternate pitch quantization strategy: pitch divider (will be the main strategy for most chips).
+
 [.] Additional presets: NES, PCE. Needs more research.
+[x] Chip specs should optionally contain a static reference to a wave envelope (i.e. NES Triangle). Applying the specs automatically loads the correct envelope.
 
 [.] Envelopes
     [ ] Test random access.

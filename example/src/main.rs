@@ -17,22 +17,22 @@ fn main() -> SdlResult {
 
     // Add and configure channel with custom specs.
     let ch = 0;
-    chip.channels.push(Channel::from(SPEC_CHIP_NES_NOISE_MELODIC));
+    chip.channels.push(Channel::from(SPEC_CHIP_PCE));
     if let Some(channel) = chip.channels.get_mut(ch) {
-        channel.volume_env = Some(Envelope::from(KNOTS_SAWTOOTH)
+        channel.volume_env = Some(Envelope::from(KNOTS_VOL_SAWTOOTH)
             .set_loop(LoopKind::LoopPoints {
                 loop_in: 1,
                 loop_out: 1,
             }),
         );
-        // channel.tremolo = Some(TREMOLO_SUBTLE);
-        // channel.vibratto = Some(VIBRATTO_SUBTLE);
-        channel.pitch_env = Some(
-            Envelope::from(KNOTS_SAWTOOTH)
-                .scale_time(1.0)
-                .offset(-1.0)           // Offset + scale here will invert the envelope
-                .scale_values(4.0)      // and scale to 0.0 ..= -4.0
-        );
+        channel.tremolo = Some(TREMOLO_SUBTLE);
+        channel.vibratto = Some(VIBRATTO_SUBTLE);
+        // channel.pitch_env = Some(
+        //     Envelope::from(KNOTS_VOL_SAWTOOTH)
+        //         .scale_time(1.0)
+        //         .offset(-1.0)           // Offset + scale here will invert the envelope
+        //         .scale_values(4.0)      // and scale to 0.0 ..= -4.0
+        // );
         // println!("{:#?}", channel.pitch_env);
         channel.set_noise(true);
         channel.play();
