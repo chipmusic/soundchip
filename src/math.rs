@@ -54,10 +54,15 @@ pub fn remap_range(value:f32, in_range:&RangeInclusive<f32>, out_range:&RangeInc
 // }
 
 pub(crate) fn quantize_range(value: f32, steps: u16, range: RangeInclusive<f32>) -> f32 {
-    // Fewer than two steps returns zero, useful in setting the pan
-    if steps < 2 {
+    // Zero steps returns zero, useful in setting the pan
+    if steps == 0 {
         return 0.0;
     }
+    // One step returns one, useful in channels without volume control, i.e. NES Triangle.
+    if steps == 1 {
+        return 1.0;
+    }
+    // Everything else...
     let steps = steps - 1;
     let min = *range.start();
     let max = *range.end();

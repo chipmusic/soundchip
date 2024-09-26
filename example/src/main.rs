@@ -15,37 +15,24 @@ fn main() -> SdlResult {
     println!("Hold the arrow keys to sustain, let them go to release.");
     println!("Hit return to toggle noise/tone .");
 
-    // let mut env_test = Envelope::from(&[
-    //     Knot::new(0.0, 0.0),
-    //     Knot::new(1.0, 5.0),
-    //     Knot::new(2.0, 0.0),
-    // ])
-    // .loop_kind(LoopKind::Repeat);
-    // for t in 0..=70 {
-    //     let t = t as f32 / 10.0;
-    //     let v = env_test.peek(t);
-    //     println!("t:{:.1}, v:{:.1}", t, v);
-    // }
-
-    // Add and configure channel with custom specs (sine wave tone, TIA-like noise)
+    // Add and configure channel with custom specs.
     let ch = 0;
-    chip.channels.push(Channel::new_clean());
+    chip.channels.push(Channel::from(SPEC_CHIP_NES_NOISE_MELODIC));
     if let Some(channel) = chip.channels.get_mut(ch) {
         channel.volume_env = Some(Envelope::from(KNOTS_SAWTOOTH)
-            .scale_time(0.85)
             .set_loop(LoopKind::LoopPoints {
                 loop_in: 1,
                 loop_out: 1,
             }),
         );
-        channel.tremolo = Some(TREMOLO_SUBTLE);
-        channel.vibratto = Some(VIBRATTO_SUBTLE);
-        // channel.pitch_env = Some(
-        //     Envelope::from(KNOTS_SAWTOOTH)
-        //         .scale_time(4.0)
-        //         .offset(-1.0)           // Offset before scaling to fit values in 0 to -1
-        //         .scale_values(4.0)      // Scale pushes the max values to -2
-        // );
+        // channel.tremolo = Some(TREMOLO_SUBTLE);
+        // channel.vibratto = Some(VIBRATTO_SUBTLE);
+        channel.pitch_env = Some(
+            Envelope::from(KNOTS_SAWTOOTH)
+                .scale_time(1.0)
+                .offset(-1.0)           // Offset + scale here will invert the envelope
+                .scale_values(4.0)      // and scale to 0.0 ..= -4.0
+        );
         // println!("{:#?}", channel.pitch_env);
         channel.set_noise(true);
         channel.play();
@@ -88,25 +75,29 @@ fn main() -> SdlResult {
             let octave = channel.octave();
             let note = channel.note();
             let midi_note = get_midi_note(octave, note) as f32;
+            // Change channel
+            // if app.gamepad.is_just_pressed(Button::LeftShoulder){
+
+            // }
             // Play notes, change pitch
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note);
-                channel.reset();
+                channel.reset_envelopes();
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
                 channel.set_note(octave - 1, note);
-                channel.reset();
+                channel.reset_envelopes();
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Right) {
                 channel.set_midi_note(midi_note + 1.0);
-                channel.reset();
+                channel.reset_envelopes();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Left) {
                 channel.set_midi_note(midi_note - 1.0);
-                channel.reset();
+                channel.reset_envelopes();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_released(Button::Up) {

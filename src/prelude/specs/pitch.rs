@@ -21,31 +21,3 @@ impl Default for SpecsPitch {
         }
     }
 }
-
-impl SpecsPitch {
-
-    pub fn psg() -> Self {
-        Self {
-            multiplier: 1.0,
-            range: Some(16.35 ..= 16744.04),
-            steps: Some(4096),
-        }
-    }
-
-    pub fn scc() -> Self {
-        Self {
-            multiplier: 1.0,
-            range: Some(16.35 ..= 16744.04),
-            steps: Some(4096),
-        }
-    }
-
-    pub fn clean() -> Self {
-        Self {
-            multiplier: 1.0,
-            range: None,
-            steps: None,
-        }
-    }
-
-}

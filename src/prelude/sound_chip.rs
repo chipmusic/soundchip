@@ -43,13 +43,12 @@ impl SoundChip {
         Self {
             channels: (0..3)
                 .map(|i| match i {
-                    0 => Channel::new_psg(true),
-                    _ => Channel::new_psg(false),
+                    0 => Channel::from(SPEC_CHIP_PSG_NOISE),
+                    _ => Channel::from(SPEC_CHIP_PSG),
                 })
                 .collect(),
             sample_rate,
-            ..Default::default() // sample_head: 0,
-                                 // last_sample_time: 0.0,
+            ..Default::default()
         }
     }
 
@@ -60,14 +59,30 @@ impl SoundChip {
         Self {
             channels: (0..8)
                 .map(|i| match i {
-                    0 => Channel::new_psg(true),
-                    1 | 2 => Channel::new_psg(false),
-                    _ => Channel::new_scc(),
+                    0 => Channel::from(SPEC_CHIP_PSG_NOISE),
+                    1 | 2 => Channel::from(SPEC_CHIP_PSG),
+                    _ => Channel::from(SPEC_CHIP_SCC),
                 })
                 .collect(),
             sample_rate,
-            ..Default::default() // sample_head: 0,
-                                 // last_sample_time: 0.0,
+            ..Default::default()
+        }
+    }
+
+    /// Creates a SoundChip configured to mimic an NES APU.
+    pub fn new_nes(sample_rate: u32) -> Self {
+        // println!("New MSX-SCC sound chip");
+        Self {
+            channels: (0..8)
+                .map(|i| match i {
+                    0 | 1 => Channel::from(SPEC_CHIP_NES_SQUARE),
+                    2 => Channel::from(SPEC_CHIP_NES_TRIANGLE),
+                    3 => Channel::from(SPEC_CHIP_NES_NOISE),
+                    _ => Channel::from(SPEC_CHIP_NES_DMC),
+                })
+                .collect(),
+            sample_rate,
+            ..Default::default()
         }
     }
 

@@ -1,6 +1,6 @@
 use libm::powf;
 
-use crate::{math::*, prelude::*, rng::*, Vec};
+use crate::{math::*, prelude::*, presets::KNOTS_TRIANGLE, rng::*, Vec};
 use core::f32::consts::TAU;
 
 const FREQ_C4: f32 = 261.63;
@@ -9,6 +9,7 @@ const FREQ_C4: f32 = 261.63;
 pub struct Channel {
     // Wavetable
     /// Enables and disables sample looping. TODO: Looping strategies, i.e. In and Out points.
+    wave_env: Envelope<NormalSigned>,
     wavetable: Vec<f32>,
     wave_out: f32,
     // Timing
@@ -53,6 +54,7 @@ pub struct Channel {
 
 impl From<SpecsChip> for Channel {
     fn from(specs: SpecsChip) -> Self {
+        let wave_env = Envelope::from(KNOTS_TRIANGLE);
         let mut result = Self {
             // Timing
             phase: 0.0,
@@ -62,7 +64,8 @@ impl From<SpecsChip> for Channel {
             time_noise: 0.0,
             period: 1.0 / FREQ_C4,
             // Wavetable
-            wavetable: Self::get_wavetable(&specs),
+            wavetable: Self::get_wavetable(&specs, &wave_env),
+            wave_env,
             wave_out: 0.0,
             // Volume
             volume: 1.0,
@@ -106,46 +109,6 @@ impl Default for Channel {
 }
 
 impl Channel {
-    /// Creates a new channel configured with a square wave.
-    pub fn new_psg(allow_noise: bool) -> Self {
-        let specs = SpecsChip {
-            envelope_rate: Some(60.0),
-            wavetable: SpecsWavetable::psg(),
-            pan: SpecsPan::psg(),
-            pitch: SpecsPitch::psg(),
-            volume: SpecsVolume::psg(),
-            noise: SpecsNoise::psg(allow_noise),
-        };
-        Self::from(specs)
-    }
-
-    /// Creates a new channel configured with a 32 byte wavetable
-    pub fn new_scc() -> Self {
-        let specs = SpecsChip {
-            envelope_rate: Some(60.0),
-            wavetable: SpecsWavetable::scc(),
-            pan: SpecsPan::scc(),
-            pitch: SpecsPitch::scc(),
-            volume: SpecsVolume::scc(),
-            noise: SpecsNoise::None,
-        };
-        Self::from(specs)
-    }
-
-    /// Creates a new channel configured without any sort of quantization, which sounds less
-    /// like a 1980's sound chip and more like a 1990's "music-tracker" or like a FM Synth.
-    pub fn new_clean() -> Self {
-        let specs = SpecsChip {
-            envelope_rate: None,
-            wavetable: SpecsWavetable::clean(),
-            pan: SpecsPan::clean(),
-            pitch: SpecsPitch::clean(),
-            volume: SpecsVolume::clean(),
-            noise: SpecsNoise::default(),
-        };
-        Self::from(specs)
-    }
-
     /// Allows sound generation on this channel.
     pub fn play(&mut self) {
         self.playing = true;
@@ -241,13 +204,21 @@ impl Channel {
     /// Reconfigures all internals according to new specs
     pub fn set_specs(&mut self, specs: SpecsChip) {
         self.rng = Self::get_rng(&specs);
-        self.wavetable = Self::get_wavetable(&specs);
+        self.wavetable = Self::get_wavetable(&specs, &self.wave_env);
         self.specs = specs;
     }
 
-    /// Resets the wavetable and copies new f32 values to it, ensuring -1.0 to 1.0 range.
+    /// Generates wavetable samples from an envelope
+    /// TODO: Normalize time range.
+    pub fn set_wavetable(&mut self, wave: Envelope<NormalSigned>) -> Result<(), ChipError> {
+        self.wave_env = wave.clone();
+        self.wavetable = Self::get_wavetable(&self.specs, &self.wave_env);
+        Ok(())
+    }
+
+    /// Directly sets the wavetable from f32 values, ensuring -1.0 to 1.0 range.
     /// Will return an error if values are invalid.
-    pub fn set_wavetable(&mut self, table: &[f32]) -> Result<(), ChipError> {
+    pub fn set_wavetable_raw(&mut self, table: &[f32]) -> Result<(), ChipError> {
         self.wavetable.clear();
         for item in table {
             if *item >= -1.0 && *item <= 1.0 {
@@ -326,6 +297,7 @@ impl Channel {
             }
             _ => {}
         }
+        self.last_env = self.process_envelopes();
     }
 
     fn process_envelopes(&mut self) -> LatestEnvelopes {
@@ -419,29 +391,36 @@ impl Channel {
         }
 
         // Envelope processing
-        if self.specs.envelope_rate.is_some() {
-            // If there's an envelope rate, calculate envelopes when needed
+        let process_envelopes_now = if self.specs.envelope_rate.is_some() {
+            // If there's an envelope rate, calculate envelopes when needed.
             if (self.time - self.last_env_time >= self.env_period) || self.time == 0.0 {
-                self.last_env = self.process_envelopes();
+                true
+            } else {
+                false
             }
         } else {
             // If no envelope rate, always calculate envelopes
-            self.last_env = self.process_envelopes();
-        }
+            true
+        };
 
         // Generate noise level, will be mixed later
-        self.noise_output = match &self.specs.noise {
-            SpecsNoise::None => 0.0,
-            SpecsNoise::Random { volume_steps, .. } | SpecsNoise::Melodic { volume_steps, .. } => {
-                if self.time_noise >= self.last_env.noise_period {
-                    self.time_noise = 0.0;
-                    (quantize_range(self.rng.next_f32(), *volume_steps, 0.0..=1.0) * 2.0) - 1.0
-                } else {
-                    self.noise_output
+        if self.noise_on {
+            self.noise_output = match self.specs.noise {
+                SpecsNoise::None => 0.0,
+                SpecsNoise::Random { volume_steps, .. } | SpecsNoise::Melodic { volume_steps, .. } => {
+                    if process_envelopes_now {
+                        self.last_env = self.process_envelopes();
+                    }
+                    if self.time_noise >= self.last_env.noise_period {
+                        self.time_noise = 0.0;
+                        (quantize_range(self.rng.next_f32(), volume_steps as u16, 0.0..=1.0) * 2.0) - 1.0
+                    } else {
+                        self.noise_output
+                    }
                 }
-            }
-            SpecsNoise::WaveTable { .. } => 0.0,
-        };
+                SpecsNoise::WaveTable { .. } => 0.0,
+            };
+        }
 
         // Determine wavetable index
         let len = self.wavetable.len();
@@ -462,6 +441,9 @@ impl Channel {
             };
             // Avoids resetting attenuation if value hasn't changed
             if value != self.last_sample_value {
+                if process_envelopes_now {
+                    self.last_env = self.process_envelopes();
+                }
                 self.wave_out = value;
                 self.last_sample_value = value;
             }
@@ -522,19 +504,21 @@ impl Channel {
     fn get_rng(specs: &SpecsChip) -> Rng {
         match specs.noise {
             SpecsNoise::None | SpecsNoise::Random { .. } | SpecsNoise::WaveTable { .. } => {
-                Rng::new(16, 1)
+                Rng::new(15, 1)
             }
             SpecsNoise::Melodic { lfsr_length, .. } => Rng::new(lfsr_length as u32, 1),
         }
     }
 
     // New Wavetable Vec from specs
-    fn get_wavetable(specs: &SpecsChip) -> Vec<f32> {
+    fn get_wavetable(specs: &SpecsChip, envelope: &Envelope<NormalSigned>) -> Vec<f32> {
+        let mut envelope = envelope.clone();
         (0..specs.wavetable.sample_count)
             .map(|i| {
                 // Default sine wave
-                let a = (i as f32 / specs.wavetable.sample_count as f32) * TAU;
-                libm::sinf(a)
+                let t = i as f32 / specs.wavetable.sample_count as f32;
+                // libm::sinf(t * TAU)
+                envelope.peek(t).into()
             })
             .collect()
     }

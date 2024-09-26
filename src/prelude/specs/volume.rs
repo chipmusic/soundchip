@@ -27,35 +27,3 @@ impl Default for SpecsVolume {
         }
     }
 }
-
-impl SpecsVolume {
-    pub fn psg() -> Self {
-        Self {
-            steps: Some(16),
-            attenuation: 0.0017,
-            exponent: 3.0,
-            gain: 1.0,
-            clip_negative_values: true,
-        }
-    }
-
-    pub fn scc() -> Self {
-        Self {
-            steps: Some(16),
-            attenuation: 0.0017,
-            exponent: 3.0,
-            gain: 1.0,
-            clip_negative_values: false,
-        }
-    }
-
-    pub fn clean() -> Self {
-        Self {
-            steps: None,
-            attenuation: 0.0,
-            exponent: 2.5,
-            gain: 1.0,
-            clip_negative_values: false,
-        }
-    }
-}

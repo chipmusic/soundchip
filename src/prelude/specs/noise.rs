@@ -11,13 +11,13 @@ pub enum SpecsNoise {
     /// can noticeably be pitched up or down.
     Melodic {
         lfsr_length: u16,
-        volume_steps: u16,
+        volume_steps: u8,
         pitch: SpecsPitch,
     },
     /// LFSR Samples running at a fixed, usually very high frequency, but new samples
     /// can be skipped (and the current sample sustained) to pitch the resulting noise down.
     Random {
-        volume_steps: u16,
+        volume_steps: u8,
         pitch: SpecsPitch,
     },
     /// Not implemented yet.
@@ -35,26 +35,6 @@ impl Default for SpecsNoise {
                 multiplier: 5.0,
                 ..Default::default()
             },
-        }
-    }
-}
-
-impl SpecsNoise {
-    /// Returns a PSG-like noise profile with 32 valid pitch values between C3 and G#5.
-    pub fn psg(allow_noise:bool) -> Self {
-        let min = Note::C.frequency(3);
-        let max = Note::GSharp.frequency(5);
-        if allow_noise {
-            Self::Random {
-                volume_steps: 2,
-                pitch: SpecsPitch {
-                    multiplier: 55.0,
-                    steps: Some(32),
-                    range: Some(min ..= max),
-                },
-            }
-        } else {
-            Self::None
         }
     }
 }

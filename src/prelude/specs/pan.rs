@@ -12,17 +12,3 @@ impl Default for SpecsPan {
         }
     }
 }
-
-impl SpecsPan {
-    pub fn psg() -> Self {
-        Self { steps: Some(16) }
-    }
-
-    pub fn scc() -> Self {
-        Self { steps: Some(16) }
-    }
-
-    pub fn clean() -> Self {
-        Self { steps: None }
-    }
-}

@@ -1,15 +1,18 @@
 # TO DO:
 
-[ ] Additional presets: NES, PCE
+[.] Additional presets: NES, PCE. Needs more research.
 
 [.] Envelopes
-    [ ] Sort on envelope manipulation? Would ensure knots always sorted.
-    [ ] Add parameter to "envelope.process()" so that the envelope "knows" if the current sample is a new wavetable cycle, and only changes state on new cycles to avoid curve discontinuity.
+    [ ] Test random access.
+    [ ] Private knots. Currently it's too easy to break an envelope by manipulating knots directly.
+        [ ] Insert and Remove knot
+        [ ] Find index by time. (will be used by peek()).
+        [ ] Auto-sort on envelope manipulation?
+    [x] Wavetables from Envelopes.
+    [x] Change "channel.sample()" so that it "knows" if the current sample is a new wavetable cycle, and only changes envelope state on new cycles to avoid curve discontinuity.
     [x] Eliminate ADSR, move on to Envelopes that can be used anywhere, including for wavetables.
     [x] Envelope "release", allows it to exit loop state past loop_out.
     [x] Loop in, out, release.
-    [ ] Wavetables from Envelopes.
-    [ ] Test random access.
 
 [x] Prelude module with all public types, but no secondary modules (like math and rng).
 
@@ -41,8 +44,8 @@
     [ ] Hard limit of number of channels.
     [ ] Hard limit on envelope knots.
 
-[x] Slimmer (and safer) types.
-    Ended up not being all that useful, since pitch envelopes actually allow values beyond 1.0 and simply use f32. Used in volume envelope
-    [x] Uf16 Struct to set/get u16 values from an f32 in the 0.0 to 1.0 range.
+[x] Slimmer (and stricter) types.
+    Ended up not being all that useful, since pitch envelopes actually allow values beyond 1.0 and simply use f32. Used in channel volume envelope and pan, though.
+    [x] Normal Struct to set/get u16 values from an f32 in the 0.0 to 1.0 range.
     [x] NormalSigned Struct to set/get i16 values from an f32 in the -1.0 to 1.0 range.
     [x] Needs testing!

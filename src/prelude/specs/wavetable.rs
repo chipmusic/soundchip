@@ -14,34 +14,8 @@ pub struct SpecsWavetable {
 impl Default for SpecsWavetable {
     fn default() -> Self {
         Self {
-            steps: Some(16),
-            sample_count: 16,
-            use_loop: true,
-        }
-    }
-}
-
-impl SpecsWavetable {
-    pub fn psg() -> Self {
-        Self {
-            steps: Some(2),
-            sample_count: 8,
-            use_loop: true,
-        }
-    }
-
-    pub fn scc() -> Self {
-        Self {
-            steps: Some(256),
+            steps: Some(32),
             sample_count: 32,
-            use_loop: true,
-        }
-    }
-
-    pub fn clean() -> Self {
-        Self{
-            steps: None,
-            sample_count: 256,
             use_loop: true,
         }
     }
