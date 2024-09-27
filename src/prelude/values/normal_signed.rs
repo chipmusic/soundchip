@@ -2,6 +2,7 @@ use crate::prelude::KnotValue;
 use core::fmt::{Display, Formatter};
 
 /// Stored internally as i16, allows converting to/from a -1.0 to 1.0 f32 range.
+/// Any f32 value beyond this range will be clipped.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NormalSigned(i16);
 

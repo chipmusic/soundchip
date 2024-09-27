@@ -5,7 +5,9 @@ use core::f32::consts::TAU;
 
 const FREQ_C4: f32 = 261.63;
 
-/// A single sound channel with configurable properties.
+/// A single sound channel with configurable properties. The easiest way to create a Channel
+/// is using Channel::from(spec), and provide one of the Specs from the "presets" module,
+/// or create your own spec from scratch.
 pub struct Channel {
     // Wavetable
     /// Enables and disables sample looping. TODO: Looping strategies, i.e. In and Out points.

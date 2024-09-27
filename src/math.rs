@@ -16,10 +16,12 @@ pub fn get_midi_note(octave: impl Into<i32>, note: impl Into<i32>) -> i32 {
 }
 
 #[inline(always)]
+/// The frequency in Hz of any MIDI note value.
 pub fn note_to_frequency(note: f32) -> f32 {
     libm::powf(2.0, (note - 69.0) / 12.0) * 440.0
 }
 
+/// Linear interpolation. Will convert any "KnotValue" into a f32 before calculating.
 #[inline(always)]
 pub fn lerp<T>(start: T, end: T, t: f32) -> f32
 where T:KnotValue
@@ -29,6 +31,7 @@ where T:KnotValue
     start + t * (end - start)
 }
 
+/// Wraps a value into a range from 0 to modulus, correctly handling negative numbers.
 #[inline(always)]
 pub fn wrap(value: i32, modulus: i32) -> i32 {
     ((value % modulus) + modulus) % modulus
@@ -39,19 +42,6 @@ pub(crate) fn compress_volume(input_vol:f32, max_vol:f32) -> f32 {
     let mult = core::f32::consts::FRAC_2_PI;
     sinf(input_vol/(max_vol*mult))
 }
-
-#[inline(always)]
-pub fn remap_range(value:f32, in_range:&RangeInclusive<f32>, out_range:&RangeInclusive<f32>) -> f32 {
-    let source_range = in_range.end() - in_range.start();
-    let x = (value - in_range.start()) / source_range;
-    let dest_range = out_range.end() - out_range.start();
-    (dest_range * x) + out_range.start()
-}
-
-// #[inline(always)]
-// pub(crate) fn quantize(value: f32, size: f32) -> f32 {
-//     roundf(value / size) * size
-// }
 
 pub(crate) fn quantize_range(value: f32, steps: u16, range: RangeInclusive<f32>) -> f32 {
     // Zero steps returns zero, useful in setting the pan
@@ -91,31 +81,59 @@ fn quantization_test() {
     assert_eq!(steps, value_count);
 }
 
+// #[inline(always)]
+// pub fn remap_range(value:f32, in_range:&RangeInclusive<f32>, out_range:&RangeInclusive<f32>) -> f32 {
+//     let source_range = in_range.end() - in_range.start();
+//     let x = (value - in_range.start()) / source_range;
+//     let dest_range = out_range.end() - out_range.start();
+//     (dest_range * x) + out_range.start()
+// }
+
+// #[inline(always)]
+// pub(crate) fn quantize(value: f32, size: f32) -> f32 {
+//     roundf(value / size) * size
+// }
+
 
 #[test]
-fn remap_test(){
-    let a = remap_range(1.0, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
-    assert_eq!(a, 5.0);
+fn test_wrapping() {
+    let a = wrap(55, 10);
+    // println!("a:{}", a);
+    assert_eq!(a, 5);
 
-    let b = remap_range(2.0, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
-    assert_eq!(b, 10.0);
+    let b = wrap(-5,10);
+    // println!("b:{}", b);
+    assert_eq!(b, 5);
 
-    let c = remap_range(1.5, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
-    assert_eq!(c, 7.5);
-
-    let d = remap_range(0.0, &(-1.0 ..= 1.0), &(0.0 ..= 1.0));
-    assert_eq!(d, 0.5);
-
-    let d = remap_range(0.5, &(0.0 ..= 1.0), &(-1.0 ..= 1.0));
-    assert_eq!(d, 0.0);
-
-    let d = remap_range(0.0, &(0.0 ..= 1.0), &(-1.0 ..= 1.0));
-    assert_eq!(d, -1.0);
-
-    // Inverted range
-    let e = remap_range(0.0, &(0.0 ..= 1.0), &(0.0 ..= -1.0));
-    assert_eq!(e, 0.0);
-
-    let f = remap_range(1.0, &(0.0 ..= 1.0), &(0.0 ..= -1.0));
-    assert_eq!(f, -1.0);
+    let c = -5 % 10;
+    // println!("c:{}", c);
+    assert_ne!(b, c);
 }
+
+// #[test]
+// fn remap_test(){
+//     let a = remap_range(1.0, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
+//     assert_eq!(a, 5.0);
+
+//     let b = remap_range(2.0, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
+//     assert_eq!(b, 10.0);
+
+//     let c = remap_range(1.5, &(1.0 ..= 2.0), &(5.0 ..= 10.0));
+//     assert_eq!(c, 7.5);
+
+//     let d = remap_range(0.0, &(-1.0 ..= 1.0), &(0.0 ..= 1.0));
+//     assert_eq!(d, 0.5);
+
+//     let d = remap_range(0.5, &(0.0 ..= 1.0), &(-1.0 ..= 1.0));
+//     assert_eq!(d, 0.0);
+
+//     let d = remap_range(0.0, &(0.0 ..= 1.0), &(-1.0 ..= 1.0));
+//     assert_eq!(d, -1.0);
+
+//     // Inverted range
+//     let e = remap_range(0.0, &(0.0 ..= 1.0), &(0.0 ..= -1.0));
+//     assert_eq!(e, 0.0);
+
+//     let f = remap_range(1.0, &(0.0 ..= 1.0), &(0.0 ..= -1.0));
+//     assert_eq!(f, -1.0);
+// }
