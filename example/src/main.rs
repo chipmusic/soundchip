@@ -1,7 +1,7 @@
-use hound::{WavSpec, WavWriter};
+mod wave_writer;
+
 use mini_sdl::*;
 use soundchip::{math::*, prelude::*, presets::*};
-use std::{env::var_os, path::PathBuf};
 
 fn main() -> SdlResult {
     println!("Use up and down arrows to change octaves.");
@@ -42,26 +42,8 @@ fn main() -> SdlResult {
         channel.release();
     }
 
-    // Writing in mono for debugging simplicity. Ensure no pan is set in the channel!
-    let target_file: Option<PathBuf> = match var_os("CARGO_MANIFEST_DIR") {
-        Some(os_var) => {
-            let dir: PathBuf = os_var.into();
-            Some(dir.join("target/output.wav"))
-        }
-        None => None,
-    };
-    println!("Saving wav file to: {:?}", target_file);
-    let wav_spec = WavSpec {
-        channels: 1,
-        sample_rate: chip.sample_rate,
-        bits_per_sample: 16,
-        sample_format: hound::SampleFormat::Int,
-    };
-    let mut writer = if let Some(target_file) = target_file {
-        Some(WavWriter::create(target_file, wav_spec).map_err(|e| e.to_string())?)
-    } else {
-        None
-    };
+    // Set up audio file writing for debugging, check "wave_writer" mod.
+    let mut wav_file = wave_writer::WaveWriter::new(app.audio_mixrate());
 
     // mini_sdl main loop. MiniSDL assumes you want both graphics and sound!
     while !app.quit_requested {
@@ -99,6 +81,7 @@ fn main() -> SdlResult {
                 channel.reset_envelopes();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
+            // Release envelopes when arrow buttons are lifted
             if app.gamepad.is_just_released(Button::Up) {
                 channel.release();
             }
@@ -121,21 +104,13 @@ fn main() -> SdlResult {
                 left: sample.left,
                 right: sample.right,
             });
-            if let Some(writer) = &mut writer {
-                writer
-                    .write_sample(i16::from(sample.left))
-                    .map_err(|e| e.to_string())?;
-            }
+            wav_file.write(sample)?;
         }
-        drop(audio_input);
 
+        drop(audio_input);
         app.frame_finish()?;
     }
 
-    // I have this path set to a ram disk on my machine,
-    // since I'm saving the wave file for debugging purposes.
-    if let Some(writer) = writer {
-        writer.finalize().map_err(|e| e.to_string())?;
-    }
+    wav_file.save_file()?;
     Ok(())
 }
