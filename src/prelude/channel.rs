@@ -119,6 +119,14 @@ impl Channel {
         self.calculate_multipliers();
     }
 
+
+    /// Plays and immediately releases the channel, preventing any envelope with loop points
+    /// from looping until released.
+    pub fn play_and_release(&mut self) {
+        self.play();
+        self.release();
+    }
+
     /// Sets all of the channel's relevant properties to match the sound's properties, but
     /// does not change the specs (the only exception is the wavetable envelope,
     /// which can be set by the sound).
@@ -141,7 +149,7 @@ impl Channel {
         self.reset();
     }
 
-    /// "Releases" all envelopes, allowing them to exit their looping state and reach their end
+    /// "Releases" all envelopes, allowing them to exit their looping state and reach their end.
     pub fn release(&mut self) {
         if let Some(env) = &mut self.volume_env {
             env.release();

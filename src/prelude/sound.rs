@@ -1,4 +1,4 @@
-use crate::presets::KNOTS_VOL_SAWTOOTH;
+use crate::presets::KNOTS_VOL_DOWN;
 
 use super::{Envelope, Normal, NormalSigned, Tremolo, Vibratto};
 
@@ -21,7 +21,7 @@ impl Default for Sound {
             waveform: None,
             tremolo: None,
             vibratto: None,
-            volume_envelope: Some(Envelope::from(KNOTS_VOL_SAWTOOTH)),
+            volume_envelope: Some(Envelope::from(KNOTS_VOL_DOWN)),
             pitch_envelope: None,
         }
     }
