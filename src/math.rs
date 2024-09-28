@@ -21,9 +21,14 @@ pub fn note_to_frequency(note: f32) -> f32 {
     libm::powf(2.0, (note - 69.0) / 12.0) * 440.0
 }
 
+/// The corresponding note of a frequency
+pub fn frequency_to_note(frequency: f32) -> f32 {
+    69.0 + 12.0 * libm::log2f(frequency / 440.0)
+}
+
 /// Linear interpolation. Will convert any "KnotValue" into a f32 before calculating.
 #[inline(always)]
-pub fn lerp<T>(start: T, end: T, t: f32) -> f32
+pub(crate) fn lerp<T>(start: T, end: T, t: f32) -> f32
 where T:KnotValue
 {
     let start:f32 = start.into();
@@ -33,7 +38,7 @@ where T:KnotValue
 
 /// Wraps a value into a range from 0 to modulus, correctly handling negative numbers.
 #[inline(always)]
-pub fn wrap(value: i32, modulus: i32) -> i32 {
+pub(crate) fn wrap(value: i32, modulus: i32) -> i32 {
     ((value % modulus) + modulus) % modulus
 }
 
@@ -108,6 +113,17 @@ fn test_wrapping() {
     let c = -5 % 10;
     // println!("c:{}", c);
     assert_ne!(b, c);
+}
+
+#[test]
+fn notes_and_frquencies() {
+    let note = 60.0;
+    let freq = 261.63;
+    let a = note_to_frequency(note);
+    assert!((a-freq).abs() < 0.01);
+
+    let b = frequency_to_note(freq);
+    assert!((b-note).abs() < 0.01);
 }
 
 // #[test]

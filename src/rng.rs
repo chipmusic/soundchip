@@ -1,8 +1,8 @@
 //! A simple, "old school" LFSR with configurable bit count.
-use crate::{math::*, Vec};
+// use crate::{math::*, Vec};
 
 pub struct Rng {
-    bit_count: u32,
+    // bit_count: u32,
     state: u32,
     mask: u32,
     tap: u32,
@@ -23,22 +23,22 @@ impl Rng {
         };
         Self {
             state,
-            bit_count,
+            // bit_count,
             mask,
             tap: get_tap(bit_count),
             f32_max: libm::powf(2.0, bit_count as f32 ),
         }
     }
 
-    /// Returns a vec containing all values in a sequence (-1.0 to 1.0 range).
-    /// TODO: Customize range.
-    pub fn as_vec(bit_count:u32, initial_state:u32, volume_steps:u16) -> Vec<f32> {
-        let mut rng = Self::new(bit_count, initial_state);
-        let max = libm::powf(2.0, bit_count as f32) as usize - 1;
-        (0..max).map(|_|{
-            quantize_range(rng.next_f32(), volume_steps, -1.0 ..= 1.0)
-        }).collect()
-    }
+    // /// Returns a vec containing all values in a sequence (-1.0 to 1.0 range).
+    // /// TODO: Customize range.
+    // pub fn as_vec(bit_count:u32, initial_state:u32, volume_steps:u16) -> Vec<f32> {
+    //     let mut rng = Self::new(bit_count, initial_state);
+    //     let max = libm::powf(2.0, bit_count as f32) as usize - 1;
+    //     (0..max).map(|_|{
+    //         quantize_range(rng.next_f32(), volume_steps, -1.0 ..= 1.0)
+    //     }).collect()
+    // }
 
     /// Next random u32 value in the sequence
     pub fn next_u32(&mut self) -> u32 {
@@ -52,31 +52,31 @@ impl Rng {
         self.next_u32() as f32 / self.f32_max
     }
 
-    /// Returns the value of the next least significant bit in the sequence.
-    pub fn next_bit(&mut self) -> bool {
-        self.next_u32() & 1 == 1
-    }
+    // /// Returns the value of the next least significant bit in the sequence.
+    // pub fn next_bit(&mut self) -> bool {
+    //     self.next_u32() & 1 == 1
+    // }
 
-    /// How many bits are used to calculate the result
-    pub fn bit_count(&self) -> u32 {
-        self.bit_count
-    }
+    // /// How many bits are used to calculate the result
+    // pub fn bit_count(&self) -> u32 {
+    //     self.bit_count
+    // }
 
-    /// Resets bit length
-    pub fn set_bit_count(&mut self, bit_count: u32, initial_state: u32) {
-        // Update the bit length
-        let bit_count = bit_count.clamp(3, 32);
-        self.mask = (1u32 << bit_count) - 1;
-        self.bit_count = bit_count;
-        self.tap = get_tap(bit_count);
-        self.f32_max = libm::powf(2.0, bit_count as f32);
-        // Apply the new initial state
-        self.state = if (initial_state & self.mask) == 0 {
-            DEFAULT_VALUE & self.mask
-        } else {
-            initial_state & self.mask
-        };
-    }
+    // /// Resets bit length
+    // pub fn set_bit_count(&mut self, bit_count: u32, initial_state: u32) {
+    //     // Update the bit length
+    //     let bit_count = bit_count.clamp(3, 32);
+    //     self.mask = (1u32 << bit_count) - 1;
+    //     // self.bit_count = bit_count;
+    //     self.tap = get_tap(bit_count);
+    //     self.f32_max = libm::powf(2.0, bit_count as f32);
+    //     // Apply the new initial state
+    //     self.state = if (initial_state & self.mask) == 0 {
+    //         DEFAULT_VALUE & self.mask
+    //     } else {
+    //         initial_state & self.mask
+    //     };
+    // }
 }
 
 #[inline(always)]

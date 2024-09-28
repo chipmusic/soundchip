@@ -25,7 +25,7 @@ pub struct Channel {
     /// Optional volume envelope, range is 0.0 ..= 1.0
     pub volume_env: Option<Envelope<Normal>>,
     /// Optional volume tremolo. Acts as a secondary envelope subtracted from the regular volume envelope.
-    pub tremolo: Option<SpecsTremolo>,
+    pub tremolo: Option<Tremolo>,
     volume: f32,
     volume_attn: f32,
     // Pitch
@@ -33,7 +33,7 @@ pub struct Channel {
     /// but values can be beyond that range (use "envelope.scale_values(factor)"" to easily change that).
     pub pitch_env: Option<Envelope<f32>>,
     /// Optional pitch vibratto. Acts as a secondary envelope, added to the regular pitch envelope.
-    pub vibratto: Option<SpecsVibratto>,
+    pub vibratto: Option<Vibratto>,
     // Noise
     rng: Rng,
     noise_on: bool,
@@ -115,6 +115,22 @@ impl Channel {
     pub fn play(&mut self) {
         self.playing = true;
         self.calculate_multipliers();
+    }
+
+    /// Sets all of the channel's relevant properties to match the sound's properties, but
+    /// does not change the specs (the only exception is the wavetable envelope,
+    /// which can be set by the sound).
+    pub fn set_sound(&mut self, sound:&Sound){
+        self.set_volume(sound.volume);
+        self.set_pitch(sound.pitch);
+        self.volume_env = sound.volume_envelope.clone();
+        self.pitch_env = sound.pitch_envelope.clone();
+        self.vibratto = sound.vibratto;
+        self.tremolo = sound.tremolo;
+        if let Some(env) = &sound.waveform {
+            // Discards result if error, for now. TODO: Return results for fallible functions
+            let _ = self.set_wavetable(env);
+        }
     }
 
     /// Stops sound generation on this channel.
@@ -212,7 +228,7 @@ impl Channel {
 
     /// Generates wavetable samples from an envelope
     /// TODO: Normalize time range.
-    pub fn set_wavetable(&mut self, wave: Envelope<NormalSigned>) -> Result<(), ChipError> {
+    pub fn set_wavetable(&mut self, wave: &Envelope<NormalSigned>) -> Result<(), ChipError> {
         self.wave_env = wave.clone();
         self.wavetable = Self::get_wavetable(&self.specs, &self.wave_env);
         Ok(())
@@ -263,9 +279,13 @@ impl Channel {
     /// and uses MIDI codes instead of octave and note, i.e. C4 is MIDI code 60.
     pub fn set_midi_note(&mut self, note: impl Into<f32>) {
         let note: f32 = note.into();
-        self.midi_note = note;
-        // Calculate note frequency
         let frequency = note_to_frequency(note);
+        self.set_pitch(frequency);
+    }
+
+    /// Directly set the channel's frequency.
+    pub fn set_pitch(&mut self, frequency:f32){
+        self.midi_note = frequency_to_note(frequency);
         self.period = 1.0 / frequency;
         // Auto reset time if needed
         if !self.specs.wavetable.use_loop || !self.playing {

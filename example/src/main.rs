@@ -4,36 +4,39 @@ use soundchip::{math::*, prelude::*, presets::*};
 use std::{env::var_os, path::PathBuf};
 
 fn main() -> SdlResult {
+    println!("Use up and down arrows to change octaves.");
+    println!("Use left and right arrows to play different notes.");
+    println!("Hold the arrow keys to sustain, let them go to release.");
+    println!("Hit return to toggle noise/tone .");
+
+    // Set up main structs
     let mut app = App::default()?;
     app.audio_start();
 
     let mix_rate = app.audio_mixrate();
     let mut chip = SoundChip::new(mix_rate);
 
-    println!("Use up and down arrows to change octaves.");
-    println!("Use left and right arrows to play different notes.");
-    println!("Hold the arrow keys to sustain, let them go to release.");
-    println!("Hit return to toggle noise/tone .");
-
-    // Add and configure channel with custom specs.
-    let ch = 0;
-    chip.channels.push(Channel::from(SPEC_CHIP_PCE));
-    if let Some(channel) = chip.channels.get_mut(ch) {
-        channel.volume_env = Some(Envelope::from(KNOTS_VOL_SAWTOOTH)
-            .set_loop(LoopKind::LoopPoints {
+    // Define sound
+    let sound = Sound {
+        volume: 1.0,
+        pitch: Note::C.frequency(4),
+        waveform: Some(Envelope::from(KNOTS_WAVE_TRIANGLE)),
+        volume_envelope: Some(
+            Envelope::from(KNOTS_VOL_SAWTOOTH).set_loop(LoopKind::LoopPoints {
                 loop_in: 1,
                 loop_out: 1,
             }),
-        );
-        channel.tremolo = Some(TREMOLO_SUBTLE);
-        channel.vibratto = Some(VIBRATTO_SUBTLE);
-        // channel.pitch_env = Some(
-        //     Envelope::from(KNOTS_VOL_SAWTOOTH)
-        //         .scale_time(1.0)
-        //         .offset(-1.0)           // Offset + scale here will invert the envelope
-        //         .scale_values(4.0)      // and scale to 0.0 ..= -4.0
-        // );
-        // println!("{:#?}", channel.pitch_env);
+        ),
+        pitch_envelope: None,
+        tremolo: Some(TREMOLO_SUBTLE),
+        vibratto: Some(VIBRATTO_SUBTLE),
+    };
+
+    // Add and configure channel with custom specs, start playback.
+    let ch = 0;
+    chip.channels.push(Channel::from(SPEC_CHIP_PCE));
+    if let Some(channel) = chip.channels.get_mut(ch) {
+        channel.set_sound(&sound);
         channel.set_noise(true);
         channel.play();
         channel.release();
@@ -75,10 +78,6 @@ fn main() -> SdlResult {
             let octave = channel.octave();
             let note = channel.note();
             let midi_note = get_midi_note(octave, note) as f32;
-            // Change channel
-            // if app.gamepad.is_just_pressed(Button::LeftShoulder){
-
-            // }
             // Play notes, change pitch
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note);
@@ -114,7 +113,7 @@ fn main() -> SdlResult {
             }
         }
 
-        // Write audio samples to mini_sdl
+        // Write audio samples to mini_sdl & wave file.
         let mut audio_input = app.audio_device.lock();
         let sample_count = audio_input.frames_available();
         for sample in chip.iter(sample_count) {

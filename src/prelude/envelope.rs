@@ -1,5 +1,5 @@
 mod knot;
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 pub use knot::*;
 
@@ -99,7 +99,7 @@ where
     }
 
     /// Adds an offset all knot values. Resulting values may be clipped
-    /// depending the target envelope's Knot's value type.
+    /// depending on the target envelope's Knot's value type.
     pub fn offset(mut self, offset: T) -> Self {
         for knot in &mut self.knots {
             *knot = knot.offset(offset);
@@ -107,8 +107,8 @@ where
         self
     }
 
-    /// Multipliesall knot values by a factor. Resulting values may be clipped
-    /// depending the target envelope's Knot's value type.
+    /// Multiplies all knot values by a factor. Resulting values may be clipped
+    /// depending on the target envelope's Knot's value type.
     pub fn scale_values(mut self, factor: T) -> Self {
         for knot in &mut self.knots {
             *knot = knot.scale_value(factor);
@@ -156,7 +156,7 @@ where
     }
 
     /// Gets the envelope value at "time". Very efficient If the time increments are small,
-    /// will trigger a search for the nearest knotx if current state is too
+    /// will trigger a search for the nearest knots if current state is too
     /// far off from the request time.
     pub fn peek(&mut self, time: f32) -> f32 {
         // println!("peeking t:{}, head:{}, repeat:{:?}", time, self.head, self.loop_kind);
