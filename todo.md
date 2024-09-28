@@ -2,12 +2,11 @@
 
 [ ] Alternate pitch quantization strategy: pitch divider (will be the main strategy for most chips).
 
+[ ] Wavetable interpolation when copying samples from an array with different length than current specs.
+
 [.] Additional presets: NES, PCE. Needs more research, specailly about pitch.
 
 [x] Chip specs should optionally contain a static reference to a wave envelope (i.e. NES Triangle). Applying the specs automatically loads the correct envelope.
-
-[ ] Wavetables
-    [ ] Interpolation when copying samples from an array with different length than current specs.
 
 [.] Envelopes
     [ ] "Step" Knot interpolation.
@@ -57,3 +56,4 @@
     [x] Normal Struct to set/get u16 values from an f32 in the 0.0 to 1.0 range.
     [x] NormalSigned Struct to set/get i16 values from an f32 in the -1.0 to 1.0 range.
     [x] Needs testing!
+    [ ] Maybe an F16 struct with (1-5-10) bits (sign, value, decimals) to replace f32 in most places? It would help to keep a lot of structs smaller, specially important for structs that are "Copy". The API can preserve f32 values for convenience.

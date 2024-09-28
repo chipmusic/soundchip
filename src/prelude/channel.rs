@@ -48,6 +48,7 @@ pub struct Channel {
     right_mult: f32,
     last_sample_index: usize,
     last_sample_value: f32,
+    last_cycle_index: usize,
     // Envelope processing
     env_period: f32,
     last_env: LatestEnvelopes,
@@ -92,6 +93,7 @@ impl From<SpecsChip> for Channel {
             right_mult: 0.5,
             last_sample_index: 0,
             last_sample_value: 0.0,
+            last_cycle_index: 0,
             // Envelope processing
             env_period: 0.0,
             last_env_time: 0.0,
@@ -204,6 +206,7 @@ impl Channel {
         self.time = 0.0;
         self.time_tone = 0.0;
         self.time_noise = 0.0;
+        self.last_cycle_index = 0;
         self.reset_envelopes();
     }
 
@@ -463,15 +466,20 @@ impl Channel {
             };
             // Avoids resetting attenuation if value hasn't changed
             if value != self.last_sample_value {
-                if process_envelopes_now {
-                    self.last_env = self.process_envelopes();
+                // Prevents sampling envelope in the middle of a wave cycle
+                let cycle_index = (self.time_tone as f64 / self.last_env.tone_period as f64) as usize;
+                if cycle_index != self.last_cycle_index {
+                    self.last_cycle_index = cycle_index;
+                    if process_envelopes_now {
+                        self.last_env = self.process_envelopes();
+                    }
                 }
                 self.wave_out = value;
                 self.last_sample_value = value;
             }
         }
 
-        // peek timers
+        // adjust timers
         self.time += delta_time;
         self.time_noise += delta_time;
         self.time_env += delta_time;

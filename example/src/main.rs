@@ -12,7 +12,6 @@ fn main() -> SdlResult {
     // Set up main structs
     let mut app = App::default()?;
     app.audio_start();
-
     let mix_rate = app.audio_mixrate();
     let mut chip = SoundChip::new(mix_rate);
 
@@ -37,7 +36,7 @@ fn main() -> SdlResult {
     chip.channels.push(Channel::from(SPEC_CHIP_PCE));
     if let Some(channel) = chip.channels.get_mut(ch) {
         channel.set_sound(&sound);
-        channel.set_noise(true);
+        // channel.set_noise(true);
         channel.play();
         channel.release();
     }

@@ -124,6 +124,14 @@ fn notes_and_frquencies() {
 
     let b = frequency_to_note(freq);
     assert!((b-note).abs() < 0.01);
+
+    // Roundtrip
+    for n in 1 .. 100 {
+        let a = n as f32 * 100.0;
+        let note = frequency_to_note(a);
+        let freq = note_to_frequency(note);
+        assert!((a - freq).abs() < 0.01);
+    }
 }
 
 // #[test]

@@ -100,7 +100,7 @@ where
 
     /// Adds an offset all knot values. Resulting values may be clipped
     /// depending on the target envelope's Knot's value type.
-    pub fn offset(mut self, offset: T) -> Self {
+    pub fn offset_values(mut self, offset: T) -> Self {
         for knot in &mut self.knots {
             *knot = knot.offset(offset);
         }
