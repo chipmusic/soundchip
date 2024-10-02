@@ -1,5 +1,9 @@
 # TO DO:
 
+[x] Noise envelope.
+
+[ ] Replace all public channel members with "sound" struct, containing them.
+
 [ ] Alternate pitch quantization strategy: pitch divider (will be the main strategy for most chips).
 
 [ ] Wavetable interpolation when copying samples from an array with different length than current specs.
@@ -9,7 +13,8 @@
 [x] Chip specs should optionally contain a static reference to a wave envelope (i.e. NES Triangle). Applying the specs automatically loads the correct envelope.
 
 [.] Envelopes
-    [ ] "Step" Knot interpolation.
+--->[ ] "Step" Knot interpolation.
+        Will fix the imprecision that happens attempting a sharp transition in 1/60 seconds, i.e. exactly one envelope sample. Currently we need two knots for that sharp transition and sometimes it "catches", sometimes not. With step interpolation this can be accomplished with a single new knot.
     [ ] Test random access.
     [ ] Private knots. Currently it's too easy to break an envelope by manipulating knots directly.
         [ ] Insert and Remove knot
@@ -56,4 +61,4 @@
     [x] Normal Struct to set/get u16 values from an f32 in the 0.0 to 1.0 range.
     [x] NormalSigned Struct to set/get i16 values from an f32 in the -1.0 to 1.0 range.
     [x] Needs testing!
-    [ ] Maybe an F16 struct with (1-5-10) bits (sign, value, decimals) to replace f32 in most places? It would help to keep a lot of structs smaller, specially important for structs that are "Copy". The API can preserve f32 values for convenience.
+    [ ] Maybe an F16 struct with (1-5-10) bits (sign, value, 3 decimals) to replace f32 in most places? It would help to keep a lot of structs smaller, specially important for structs that are "Copy". The API can preserve f32 values for convenience.

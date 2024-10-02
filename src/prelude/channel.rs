@@ -1,7 +1,6 @@
-use libm::powf;
-
 use crate::{math::*, prelude::*, presets::*, rng::*, Vec};
 use core::f32::consts::TAU;
+use libm::powf;
 
 const FREQ_C4: f32 = 261.63;
 
@@ -35,6 +34,7 @@ pub struct Channel {
     /// Optional pitch vibratto. Acts as a secondary envelope, added to the regular pitch envelope.
     pub vibratto: Option<Vibratto>,
     // Noise
+    pub noise_env: Option<Envelope<Normal>>,
     rng: Rng,
     noise_on: bool,
     noise_period: f32,
@@ -80,6 +80,7 @@ impl From<SpecsChip> for Channel {
             // pitch_env_multiplier: 2.0,
             vibratto: None,
             // Noise
+            noise_env: None,
             rng: Self::get_rng(&specs),
             noise_on: false,
             noise_period: 0.0,
@@ -135,6 +136,7 @@ impl Channel {
         self.set_pitch(sound.pitch);
         self.volume_env = sound.volume_envelope.clone();
         self.pitch_env = sound.pitch_envelope.clone();
+        self.noise_env = sound.noise_envelope.clone();
         self.vibratto = sound.vibratto;
         self.tremolo = sound.tremolo;
         if let Some(env) = &sound.waveform {
@@ -215,7 +217,9 @@ impl Channel {
         self.time_tone = 0.0;
         self.time_noise = 0.0;
         self.last_cycle_index = 0;
+        self.last_env = LatestEnvelopes::default();
         self.reset_envelopes();
+        self.process_envelopes();
     }
 
     /// Resets just the envelope timer.
@@ -226,6 +230,9 @@ impl Channel {
             env.reset();
         }
         if let Some(env) = &mut self.pitch_env {
+            env.reset();
+        }
+        if let Some(env) = &mut self.noise_env {
             env.reset();
         }
     }
@@ -273,6 +280,7 @@ impl Channel {
     }
 
     /// Switches channel between tone and noise generation, if specs allow noise.
+    /// Will be overriden if a noise envelope is used.
     pub fn set_noise(&mut self, state: bool) {
         if self.specs.noise != SpecsNoise::None {
             self.noise_on = state;
@@ -396,6 +404,15 @@ impl Channel {
         };
 
         let noise_period = self.noise_period * powf(2.0, -pitch_change);
+        let noise = if let Some(env) = &mut self.noise_env {
+            env.peek(self.time_env)
+        } else {
+            if self.noise_on {
+                1.0
+            } else {
+                0.0
+            }
+        };
 
         // Timing adjust to preserve phase
         self.time_tone = self.phase * tone_period;
@@ -403,9 +420,10 @@ impl Channel {
 
         // Return
         LatestEnvelopes {
+            volume,
+            noise,
             tone_period,
             noise_period,
-            volume,
         }
     }
 
@@ -437,7 +455,7 @@ impl Channel {
         };
 
         // Generate noise level, will be mixed later
-        if self.noise_on {
+        if self.last_env.noise > 0.0 {
             self.noise_output = match self.specs.noise {
                 SpecsNoise::None => 0.0,
                 SpecsNoise::Random { volume_steps, .. } | SpecsNoise::Melodic { volume_steps, .. } => {
@@ -499,7 +517,7 @@ impl Channel {
         };
 
         // Mix with noise (currently just overwrites). TODO: optional mix
-        if self.noise_on {
+        if self.last_env.noise > 0.0 {
             self.wave_out = self.noise_output;
         }
 
@@ -582,7 +600,8 @@ impl Channel {
 
 #[derive(Default)]
 struct LatestEnvelopes {
-    volume: f32,
+    volume: f32,    // TODO: Normal
+    noise: f32,     // TODO: Normal
     tone_period: f32,
     noise_period: f32,
 }

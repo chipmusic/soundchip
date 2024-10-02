@@ -2,7 +2,7 @@ use crate::prelude::*;
 use crate::presets::*;
 
 pub const SPEC_WAVE_FLAT:SpecsWavetable = SpecsWavetable {
-    default_waveform: Some(KNOTS_FLAT),
+    default_waveform: Some(KNOTS_FLAT_ZERO),
     sample_count: 8,
     use_loop: true,
     steps: Some(0),

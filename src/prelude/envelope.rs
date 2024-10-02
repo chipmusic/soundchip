@@ -277,9 +277,18 @@ where
             }
 
             // Return interpolated value
-            let x = local_time / next_time;
-            // println!("time:{}, local_time:{}, next_time:{}, x: {}", time, local_time, next_time, x);
-            lerp(current.value, next.value, x)
+            match current.interpolation {
+                Interpolation::Linear => {
+                    let x = local_time / next_time;
+                    // println!("time:{}, local_time:{}, next_time:{}, x: {}", time, local_time, next_time, x);
+                    lerp(current.value, next.value, x)
+                },
+                Interpolation::Step => {
+                    // println!("step");
+                    current.value.into()
+                },
+            }
+
         } else {
             // Should not happen, since time should always be in the correct range!
             // TODO: Change to fail graciously.

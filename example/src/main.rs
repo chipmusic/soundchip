@@ -20,15 +20,20 @@ fn main() -> SdlResult {
         volume: 1.0,
         pitch: Note::C.frequency(4),
         waveform: Some(Envelope::from(KNOTS_WAVE_TRIANGLE)),
+        noise_envelope: None,
+        // Some(
+        //     Envelope::from(KNOTS_VOL_SQUARE).scale_time(1.0/30.0)
+            // Envelope::from(KNOTS_VOL_SINGLE_SAMPLE)
+        // ),
         volume_envelope: Some(
-            Envelope::from(KNOTS_VOL_SAWTOOTH).set_loop(LoopKind::LoopPoints {
+            Envelope::from(KNOTS_VOL_DOWN).set_loop(LoopKind::LoopPoints {
                 loop_in: 1,
                 loop_out: 1,
             }),
         ),
         pitch_envelope: None,
-        tremolo: Some(TREMOLO_SUBTLE),
-        vibratto: Some(VIBRATTO_SUBTLE),
+        tremolo: None,//Some(TREMOLO_SUBTLE),
+        vibratto: None,//Some(VIBRATTO_SUBTLE),
     };
 
     // Add and configure channel with custom specs, start playback.

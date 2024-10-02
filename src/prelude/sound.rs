@@ -6,6 +6,7 @@ use super::{Envelope, Normal, NormalSigned, Tremolo, Vibratto};
 pub struct Sound {
     pub volume: f32,
     pub pitch: f32,
+    pub noise_envelope: Option<Envelope<Normal>>,
     pub waveform: Option<Envelope<NormalSigned>>,
     pub tremolo: Option<Tremolo>,
     pub vibratto: Option<Vibratto>,
@@ -21,6 +22,7 @@ impl Default for Sound {
             waveform: None,
             tremolo: None,
             vibratto: None,
+            noise_envelope: None,
             volume_envelope: Some(Envelope::from(KNOTS_VOL_DOWN)),
             pitch_envelope: None,
         }
