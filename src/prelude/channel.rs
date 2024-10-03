@@ -7,10 +7,11 @@ const FREQ_C4: f32 = 261.63;
 /// A single sound channel with configurable properties. The easiest way to create a Channel
 /// is using Channel::from(spec), and provide one of the Specs from the "presets" module,
 /// or create your own spec from scratch.
+#[derive(Debug)]
 pub struct Channel {
+    /// All public sound properties
+    pub sound: Sound,
     // Wavetable
-    /// Enables and disables sample looping. TODO: Looping strategies, i.e. In and Out points.
-    wave_env: Envelope<NormalSigned>,
     wavetable: Vec<f32>,
     wave_out: f32,
     // Timing
@@ -19,22 +20,13 @@ pub struct Channel {
     time_env: f32,
     time_tone: f32,
     time_noise: f32,
-    period: f32,
     // Volume
-    /// Optional volume envelope, range is 0.0 ..= 1.0
-    pub volume_env: Option<Envelope<Normal>>,
-    /// Optional volume tremolo. Acts as a secondary envelope subtracted from the regular volume envelope.
-    pub tremolo: Option<Tremolo>,
-    volume: f32,
+    // volume: f32,
     volume_attn: f32,
     // Pitch
-    /// Optional pitch envelope. Range -1.0 ..= 1.0 means one octave down or up,
-    /// but values can be beyond that range (use "envelope.scale_values(factor)"" to easily change that).
-    pub pitch_env: Option<Envelope<f32>>,
-    /// Optional pitch vibratto. Acts as a secondary envelope, added to the regular pitch envelope.
-    pub vibratto: Option<Vibratto>,
+    period: f32,
+    midi_note: f32,
     // Noise
-    pub noise_env: Option<Envelope<Normal>>,
     rng: Rng,
     noise_on: bool,
     noise_period: f32,
@@ -42,7 +34,6 @@ pub struct Channel {
     // State
     specs: SpecsChip,
     pan: NormalSigned,
-    midi_note: f32,
     playing: bool,
     left_mult: f32,
     right_mult: f32,
@@ -51,13 +42,17 @@ pub struct Channel {
     last_cycle_index: usize,
     // Envelope processing
     env_period: f32,
-    last_env: LatestEnvelopes,
+    last_env: EnvelopeValues,
     last_env_time: f32,
 }
 
 impl From<SpecsChip> for Channel {
     fn from(specs: SpecsChip) -> Self {
-        let wave_env = Envelope::from(KNOTS_WAVE_TRIANGLE);
+        let wave_env = if let Some(knots) = specs.wavetable.default_waveform {
+            Envelope::from(knots)
+        } else {
+            Envelope::from(KNOTS_WAVE_TRIANGLE)
+        };
         let mut result = Self {
             // Timing
             phase: 0.0,
@@ -65,30 +60,27 @@ impl From<SpecsChip> for Channel {
             time_env: 0.0,
             time_tone: 0.0,
             time_noise: 0.0,
-            period: 1.0 / FREQ_C4,
             // Wavetable
             wavetable: Self::get_wavetable_from_specs(&specs),
-            wave_env,
             wave_out: 0.0,
             // Volume
-            volume: 1.0,
-            volume_env: None,
+            // volume: 1.0,
             volume_attn: 0.0,
-            tremolo: None,
             // Pitch
-            pitch_env: None,
-            // pitch_env_multiplier: 2.0,
-            vibratto: None,
+            midi_note: 60.0,
+            period: 1.0 / FREQ_C4,
             // Noise
-            noise_env: None,
             rng: Self::get_rng(&specs),
             noise_on: false,
             noise_period: 0.0,
             noise_output: 0.0,
             // State
+            sound: Sound {
+                waveform: Some(wave_env),
+                ..Default::default()
+            },
             specs,
             pan: NormalSigned::from(0.0),
-            midi_note: 60.0,
             playing: false,
             left_mult: 0.5,
             right_mult: 0.5,
@@ -98,7 +90,7 @@ impl From<SpecsChip> for Channel {
             // Envelope processing
             env_period: 0.0,
             last_env_time: 0.0,
-            last_env: LatestEnvelopes::default(),
+            last_env: EnvelopeValues::default(),
         };
         result.set_note(4, Note::C);
         result.set_volume(1.0);
@@ -120,7 +112,6 @@ impl Channel {
         self.calculate_multipliers();
     }
 
-
     /// Plays and immediately releases the channel, preventing any envelope with loop points
     /// from looping until released.
     pub fn play_and_release(&mut self) {
@@ -131,18 +122,12 @@ impl Channel {
     /// Sets all of the channel's relevant properties to match the sound's properties, but
     /// does not change the specs (the only exception is the wavetable envelope,
     /// which can be set by the sound).
-    pub fn set_sound(&mut self, sound:&Sound){
-        self.set_volume(sound.volume);
-        self.set_pitch(sound.pitch);
-        self.volume_env = sound.volume_envelope.clone();
-        self.pitch_env = sound.pitch_envelope.clone();
-        self.noise_env = sound.noise_envelope.clone();
-        self.vibratto = sound.vibratto;
-        self.tremolo = sound.tremolo;
+    pub fn set_sound(&mut self, sound: &Sound) {
+        self.sound = sound.clone();
         if let Some(env) = &sound.waveform {
-            // Discards result if error, for now. TODO: Return results for fallible functions
-            let _ = self.set_wavetable(env);
+            self.wavetable = Self::get_wavetable(&self.specs, env);
         }
+        self.reset();
     }
 
     /// Stops sound generation on this channel.
@@ -153,10 +138,10 @@ impl Channel {
 
     /// "Releases" all envelopes, allowing them to exit their looping state and reach their end.
     pub fn release(&mut self) {
-        if let Some(env) = &mut self.volume_env {
+        if let Some(env) = &mut self.sound.volume_env {
             env.release();
         }
-        if let Some(env) = &mut self.pitch_env {
+        if let Some(env) = &mut self.sound.pitch_env {
             env.release();
         }
     }
@@ -198,7 +183,7 @@ impl Channel {
 
     /// The main volume level. Values above 1.0 may cause clipping. Does not account for volume envelope.
     pub fn volume(&self) -> f32 {
-        self.volume
+        self.sound.volume
     }
 
     /// Current stereo panning. Zero means centered (mono).
@@ -217,24 +202,25 @@ impl Channel {
         self.time_tone = 0.0;
         self.time_noise = 0.0;
         self.last_cycle_index = 0;
-        self.last_env = LatestEnvelopes::default();
+        self.calculate_multipliers();
         self.reset_envelopes();
-        self.process_envelopes();
     }
 
     /// Resets just the envelope timer.
     pub fn reset_envelopes(&mut self) {
         self.time_env = 0.0;
         self.last_env_time = 0.0;
-        if let Some(env) = &mut self.volume_env {
+        self.last_env = EnvelopeValues::default();
+        if let Some(env) = &mut self.sound.volume_env {
             env.reset();
         }
-        if let Some(env) = &mut self.pitch_env {
+        if let Some(env) = &mut self.sound.pitch_env {
             env.reset();
         }
-        if let Some(env) = &mut self.noise_env {
+        if let Some(env) = &mut self.sound.noise_env {
             env.reset();
         }
+        self.process_envelopes();
     }
 
     /// Reconfigures all internals according to new specs
@@ -247,8 +233,10 @@ impl Channel {
     /// Generates wavetable samples from an envelope
     /// TODO: Normalize time range.
     pub fn set_wavetable(&mut self, wave: &Envelope<NormalSigned>) -> Result<(), ChipError> {
-        self.wave_env = wave.clone();
-        self.wavetable = Self::get_wavetable(&self.specs, &self.wave_env);
+        self.sound.waveform = Some(wave.clone());
+        if let Some(env) = &self.sound.waveform {
+            self.wavetable = Self::get_wavetable(&self.specs, env);
+        }
         Ok(())
     }
 
@@ -269,7 +257,7 @@ impl Channel {
     /// A value between 0.0 and 1.0. It will be quantized, receive a fixed gain and
     /// mapped to an exponential curve, according to the SpecsChip.
     pub fn set_volume(&mut self, volume: f32) {
-        self.volume = volume.clamp(0.0, 16.0);
+        self.sound.volume = volume.clamp(0.0, 16.0);
         self.calculate_multipliers();
     }
 
@@ -303,9 +291,10 @@ impl Channel {
     }
 
     /// Directly set the channel's frequency.
-    pub fn set_pitch(&mut self, frequency:f32){
-        self.midi_note = frequency_to_note(frequency);
+    pub fn set_pitch(&mut self, frequency: f32) {
+        self.sound.pitch = frequency;
         self.period = 1.0 / frequency;
+        self.midi_note = frequency_to_note(frequency);
         // Auto reset time if needed
         if !self.specs.wavetable.use_loop || !self.playing {
             // If looping isn't required, ensure sample will be played from beginning.
@@ -341,16 +330,16 @@ impl Channel {
         self.last_env = self.process_envelopes();
     }
 
-    fn process_envelopes(&mut self) -> LatestEnvelopes {
+    fn process_envelopes(&mut self) -> EnvelopeValues {
         // Adjust volume with envelope
-        let mut volume_env = if let Some(env) = &mut self.volume_env {
+        let mut volume_env = if let Some(env) = &mut self.sound.volume_env {
             env.peek(self.time_env)
         } else {
             1.0
         };
 
         // Apply tremolo
-        if let Some(tremolo) = &self.tremolo {
+        if let Some(tremolo) = &self.sound.tremolo {
             let sine = libm::sinf(self.time * TAU * tremolo.frequency);
             let quant = if let Some(steps) = tremolo.steps {
                 quantize_range(sine, steps, -1.0..=1.0)
@@ -364,22 +353,22 @@ impl Channel {
         // Quantize volume (if needed) and apply log curve.
         let volume = libm::powf(
             if let Some(steps) = self.specs.volume.steps {
-                quantize_range(self.volume * volume_env, steps, 0.0..=1.0)
+                quantize_range(self.sound.volume * volume_env, steps, 0.0..=1.0)
             } else {
-                self.volume * volume_env
+                self.sound.volume * volume_env
             },
             self.specs.volume.exponent,
         );
 
         // Pitch envelope
-        let mut pitch_change = if let Some(env) = &mut self.pitch_env {
+        let mut pitch_change = if let Some(env) = &mut self.sound.pitch_env {
             env.peek(self.time_env)
         } else {
             0.0
         };
 
         // Apply vibratto
-        if let Some(vibratto) = &self.vibratto {
+        if let Some(vibratto) = &self.sound.vibratto {
             let sine = libm::sinf(self.time * TAU * vibratto.frequency);
             let quant = if let Some(steps) = vibratto.steps {
                 quantize_range(sine, steps, -1.0..=1.0)
@@ -390,21 +379,21 @@ impl Channel {
         };
 
         // Acquire optionally quantized tone period and noise period with pitch change
-        let tone_period = (self.period / self.specs.pitch.multiplier) * powf(2.0, -pitch_change);
+        let base_period = (self.period / self.specs.pitch.multiplier) * powf(2.0, -pitch_change);
         let tone_period = if let Some(steps) = self.specs.pitch.steps {
             if let Some(range) = &self.specs.pitch.range {
                 // TODO: This needs optimization...
-                let freq = 1.0 / tone_period;
+                let freq = 1.0 / base_period;
                 1.0 / quantize_range(freq, steps, (*range).clone())
             } else {
-                tone_period
+                base_period
             }
         } else {
-            tone_period
+            base_period
         };
 
         let noise_period = self.noise_period * powf(2.0, -pitch_change);
-        let noise = if let Some(env) = &mut self.noise_env {
+        let noise = if let Some(env) = &mut self.sound.noise_env {
             env.peek(self.time_env)
         } else {
             if self.noise_on {
@@ -419,7 +408,7 @@ impl Channel {
         self.last_env_time = self.time;
 
         // Return
-        LatestEnvelopes {
+        EnvelopeValues {
             volume,
             noise,
             tone_period,
@@ -458,13 +447,15 @@ impl Channel {
         if self.last_env.noise > 0.0 {
             self.noise_output = match self.specs.noise {
                 SpecsNoise::None => 0.0,
-                SpecsNoise::Random { volume_steps, .. } | SpecsNoise::Melodic { volume_steps, .. } => {
+                SpecsNoise::Random { volume_steps, .. }
+                | SpecsNoise::Melodic { volume_steps, .. } => {
                     if process_envelopes_now {
                         self.last_env = self.process_envelopes();
                     }
                     if self.time_noise >= self.last_env.noise_period {
                         self.time_noise = 0.0;
-                        (quantize_range(self.rng.next_f32(), volume_steps as u16, 0.0..=1.0) * 2.0) - 1.0
+                        (quantize_range(self.rng.next_f32(), volume_steps as u16, 0.0..=1.0) * 2.0)
+                            - 1.0
                     } else {
                         self.noise_output
                     }
@@ -493,7 +484,8 @@ impl Channel {
             // Avoids resetting attenuation if value hasn't changed
             if value != self.last_sample_value {
                 // Prevents sampling envelope in the middle of a wave cycle
-                let cycle_index = (self.time_tone as f64 / self.last_env.tone_period as f64) as usize;
+                let cycle_index =
+                    (self.time_tone as f64 / self.last_env.tone_period as f64) as usize;
                 if cycle_index != self.last_cycle_index {
                     self.last_cycle_index = cycle_index;
                     if process_envelopes_now {
@@ -585,7 +577,7 @@ impl Channel {
     }
 
     // New Wavetable Vec
-    fn get_wavetable(specs: &SpecsChip, envelope:&Envelope<NormalSigned>) -> Vec<f32> {
+    fn get_wavetable(specs: &SpecsChip, envelope: &Envelope<NormalSigned>) -> Vec<f32> {
         let mut envelope = envelope.clone();
         (0..specs.wavetable.sample_count)
             .map(|i| {
@@ -598,10 +590,21 @@ impl Channel {
     }
 }
 
-#[derive(Default)]
-struct LatestEnvelopes {
-    volume: f32,    // TODO: Normal
-    noise: f32,     // TODO: Normal
+#[derive(Debug)]
+struct EnvelopeValues {
+    volume: f32, // TODO: Normal
+    noise: f32,  // TODO: Normal
     tone_period: f32,
     noise_period: f32,
+}
+
+impl Default for EnvelopeValues {
+    fn default() -> Self {
+        Self {
+            volume: 1.0,
+            noise: 0.0,
+            tone_period: 1.0 / FREQ_C4,
+            noise_period: 1.0 / FREQ_C4,
+        }
+    }
 }

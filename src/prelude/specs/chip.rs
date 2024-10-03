@@ -1,6 +1,6 @@
 use super::{SpecsPan, SpecsWavetable, SpecsVolume, SpecsNoise, SpecsPitch};
 
-/// Virtual sound chip's audio properties, which can be manipulated to mimic various
+/// Sound chip's audio properties, which can be manipulated to mimic various
 /// kinds of audio hardware per channel.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SpecsChip {

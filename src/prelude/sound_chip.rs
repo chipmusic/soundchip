@@ -8,8 +8,6 @@ pub struct SoundChip {
     /// The sampling rate at which mixing is performed. Should match your audio playback device,
     /// but can be lower for improved performance. Usually 44100 or 48000.
     pub sample_rate: u32,
-    /// Applies a correction per channel to help avoid clipping the samples beyond -1.0 to 1.0.
-    // pub auto_prevent_clipping: bool,
     /// Vector containing sound channels. You can directly manipulate it to add/remove channels.
     pub channels: Vec<Channel>,
     sample_head: usize,
@@ -126,7 +124,7 @@ impl SoundChip {
         self.last_sample_time = time;
 
         for channel in &mut self.channels {
-            let sample = channel.sample(delta_time as f32); // delta will be always tiny, f32 is fine.
+            let sample = channel.sample(delta_time as f32); // delta will be always tiny, f32 is fine(?)
             left += sample.left;
             right += sample.right;
         }

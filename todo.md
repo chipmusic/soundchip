@@ -13,7 +13,7 @@
 [x] Chip specs should optionally contain a static reference to a wave envelope (i.e. NES Triangle). Applying the specs automatically loads the correct envelope.
 
 [.] Envelopes
---->[ ] "Step" Knot interpolation.
+    [?] "Step" Knot interpolation. [Needs testing].
         Will fix the imprecision that happens attempting a sharp transition in 1/60 seconds, i.e. exactly one envelope sample. Currently we need two knots for that sharp transition and sometimes it "catches", sometimes not. With step interpolation this can be accomplished with a single new knot.
     [ ] Test random access.
     [ ] Private knots. Currently it's too easy to break an envelope by manipulating knots directly.

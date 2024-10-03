@@ -1,6 +1,7 @@
 //! A simple, "old school" LFSR with configurable bit count.
 // use crate::{math::*, Vec};
 
+#[derive(Debug)]
 pub struct Rng {
     // bit_count: u32,
     state: u32,

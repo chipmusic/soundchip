@@ -22,7 +22,7 @@ pub const KNOTS_VOL_DOWN:&[Knot<f32>] = &[
 
 pub const KNOTS_VOL_SQUARE:&[Knot<f32>] = &[
     Knot{time:0.0, value:1.0, interpolation:Step},
-    Knot{time:0.5, value:0.0, interpolation:Step},
+    // Knot{time:0.5, value:0.0, interpolation:Step},
     Knot{time:1.0, value:0.0, interpolation:Step},
 ];
 
