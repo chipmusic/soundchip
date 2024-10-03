@@ -1,5 +1,5 @@
 **_UPDATE_**:
-Approaching release. Needs testing on a real-world project, which will happen soon, then will move to 1.0!
+Braking changes to Channel, all public sound properties now under a single "Sound" struct.
 _Pardon the mess, this is a work-in-progress. API changes are still frequent._
 
 The SoundChip struct contains multiple channels, each with configurable settings that can replicate old audio chips like PSGs and simple wave tables. It is **_not_** an emulator, instead it allows you to customize the sound properties of any sound channel to mimic an old sound chip.
