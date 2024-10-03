@@ -19,7 +19,7 @@ fn main() -> SdlResult {
     let sound = Sound {
         volume: 1.0,
         pitch: Note::C.frequency(4),
-        waveform: Some(Envelope::from(KNOTS_WAVE_TRIANGLE)),
+        waveform: Some(Envelope::from(KNOTS_WAVE_SAWTOOTH)),
         noise_env: None,
         // noise_env: Some(
         //     Envelope::from(KNOTS_VOL_DOWN).scale_time(1.0/30.0)
@@ -28,7 +28,7 @@ fn main() -> SdlResult {
             Envelope::from(KNOTS_VOL_DOWN).set_loop(LoopKind::LoopPoints {
                 loop_in: 1,
                 loop_out: 1,
-            }),
+            }).scale_time(0.5).echo(0.5.into()),
         ),
         pitch_env: None,
         tremolo: Some(TREMOLO_SUBTLE),

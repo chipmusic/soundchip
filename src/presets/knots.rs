@@ -53,6 +53,21 @@ pub const KNOTS_WAVE_SQUARE:&[Knot<f32>] = &[
     Knot{time:1.0, value:-1.0, interpolation:Step},
 ];
 
+pub const KNOTS_WAVE_SQUARESAW:&[Knot<f32>] = &[
+    Knot{time:0.0, value:1.0, interpolation:Step},
+    Knot{time:0.5, value:-1.0, interpolation:Linear},
+    Knot{time:1.0, value:1.0, interpolation:Linear},
+];
+
+pub const KNOTS_WAVE_TRAPEZOID:&[Knot<f32>] = &[
+    Knot{time:0.0, value:0.0, interpolation:Linear},
+    Knot{time:0.1, value:1.0, interpolation:Linear},
+    Knot{time:0.4, value:1.0, interpolation:Linear},
+    Knot{time:0.6, value:-1.0, interpolation:Linear},
+    Knot{time:0.9, value:-1.0, interpolation:Linear},
+    Knot{time:1.0, value:0.0, interpolation:Linear},
+];
+
 pub const KNOTS_WAVE_TRIANGLE:&[Knot<f32>] = &[
     Knot{time:0.0, value:0.0, interpolation:Linear},
     Knot{time:0.25, value:1.0, interpolation:Linear},

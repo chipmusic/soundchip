@@ -1,15 +1,18 @@
 mod knot;
-use core::cmp::Ordering;
-
 pub use knot::*;
 
 mod tests;
+
+use core::cmp::Ordering;
+use libm::floorf;
 
 use crate::{
     math::lerp,
     prelude::{KnotValue, LoopKind},
     Vec,
 };
+
+use super::Normal;
 
 const SAFETY_EPSILON: f32 = f32::EPSILON * 2.0;
 
@@ -19,6 +22,7 @@ pub struct Envelope<T>
 where
     T: KnotValue,
 {
+    pub echo: Option<Normal>,
     pub knots: Vec<Knot<T>>,
     pub loop_kind: LoopKind,
     release: bool,
@@ -46,6 +50,7 @@ where
             });
         }
         Self {
+            echo: None,
             knots,
             head: 0,
             release: false,
@@ -80,6 +85,7 @@ where
             }
         });
         Self {
+            echo: None,
             knots,
             loop_kind: LoopKind::None,
             release: false,
@@ -100,18 +106,18 @@ where
 
     /// Adds an offset all knot values. Resulting values may be clipped
     /// depending on the target envelope's Knot's value type.
-    pub fn offset_values(mut self, offset: T) -> Self {
+    pub fn offset_values(mut self, offset: f32) -> Self {
         for knot in &mut self.knots {
-            *knot = knot.offset(offset);
+            *knot = knot.offset(offset.into());
         }
         self
     }
 
     /// Multiplies all knot values by a factor. Resulting values may be clipped
     /// depending on the target envelope's Knot's value type.
-    pub fn scale_values(mut self, factor: T) -> Self {
+    pub fn scale_values(mut self, factor: f32) -> Self {
         for knot in &mut self.knots {
-            *knot = knot.scale_value(factor);
+            *knot = knot.scale_value(factor.into());
         }
         self
     }
@@ -127,6 +133,18 @@ where
     /// Changes the loop kind.
     pub fn set_loop(mut self, kind: LoopKind) -> Self {
         self.loop_kind = kind;
+        self
+    }
+
+    /// Adds an echo multiplied by attenuation on every loop iteration.
+    pub fn echo(mut self, attenuation:Normal) -> Self {
+        self.echo = Some(attenuation);
+        match self.loop_kind {
+            LoopKind::None | LoopKind::Repeat => {
+                self.loop_kind = LoopKind::LoopPoints { loop_in: 0, loop_out: self.len() as u8 }
+            },
+            LoopKind::LoopPoints { .. } => {},
+        }
         self
     }
 
@@ -177,9 +195,9 @@ where
                 if time > last_knot.time {
                     self.head = 0;
                     let normal_t = get_loop_position_f32(time, first_knot.time, last_knot.time);
-                    return self.peek_within_time_range(normal_t);
+                    return self.peek_within_time_range(normal_t, 1.0);
                 }
-                self.peek_within_time_range(time)
+                self.peek_within_time_range(time, 1.0)
             }
             LoopKind::LoopPoints { loop_in, loop_out } => {
                 let knot_in = self.knots.get(loop_in as usize);
@@ -218,27 +236,38 @@ where
                 } else {
                     // println!("Looping with time_out{}", time_out);
                     let loop_t = get_loop_position_f32(time, time_in, time_out);
-                    self.peek_within_time_range(loop_t)
+                    self.peek_within_time_range(loop_t, 1.0)
                 }
             }
         }
     }
 
     #[inline(always)]
-    fn peek_without_loop(&mut self, time: f32, time_in: f32, time_out: f32, value_out: T) -> f32 {
+    fn peek_without_loop(&mut self, local_time: f32, time_in: f32, time_out: f32, value_out: T) -> f32 {
         // println!("time:{}", time);
-        if time >= time_out {
+        if local_time >= time_out {
+            if let Some(attenuation) = self.echo {
+                let iteration = floorf((local_time + time_in) / time_out);
+                let attenuation:f32 = attenuation.into();
+                let echo = attenuation / iteration;
+                #[cfg(debug_assertions)]{
+                    if iteration < 1.0 {
+                        unreachable!();
+                    }
+                }
+                return self.peek_within_time_range(local_time % time_out, echo);
+            }
             // println!("time out: {}", time_out);
             return value_out.into();
         }
-        let normal_t = get_loop_position_f32(time, time_in, time_out);
+        let normal_t = get_loop_position_f32(local_time, time_in, time_out);
         // println!("normal time:{}", normal_t);
-        self.peek_within_time_range(normal_t)
+        self.peek_within_time_range(normal_t, 1.0)
     }
 
     // Requires pre-filtering values outside of envelope time range to work! Will hit
     // an unreachable scope if head == len-1.
-    fn peek_within_time_range(&mut self, time: f32) -> f32 {
+    fn peek_within_time_range(&mut self, time: f32, attenuation:f32) -> f32 {
         // "head" should always be valid
         // println!("Peeking time: {:.3}", time);
         let current = self.knots[self.head];
@@ -273,7 +302,7 @@ where
                     }
                 }
                 // Re-run with updated head
-                return self.peek_within_time_range(time);
+                return self.peek_within_time_range(time, attenuation);
             }
 
             // Return interpolated value
@@ -281,19 +310,20 @@ where
                 Interpolation::Linear => {
                     let x = local_time / next_time;
                     // println!("time:{}, local_time:{}, next_time:{}, x: {}", time, local_time, next_time, x);
-                    lerp(current.value, next.value, x)
+                    lerp(current.value, next.value, x) * attenuation
                 },
                 Interpolation::Step => {
                     // println!("step");
-                    current.value.into()
+                    current.value.into() * attenuation
                 },
             }
 
         } else {
             // Should not happen, since time should always be in the correct range!
-            // TODO: Change to fail graciously.
-            // println!("Oh no! {:#.2?}", self);
-            unreachable!();
+            // TODO: Change to fail graciously, just in case.
+            #[cfg(debug_assertions)]{
+                unreachable!();
+            }
         }
     }
 }

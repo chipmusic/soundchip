@@ -109,14 +109,23 @@ impl Channel {
     /// Allows sound generation on this channel.
     pub fn play(&mut self) {
         self.playing = true;
+        self.set_pitch(self.sound.pitch);
         self.calculate_multipliers();
     }
 
     /// Plays and immediately releases the channel, preventing any envelope with loop points
     /// from looping until released.
     pub fn play_and_release(&mut self) {
+        self.set_pitch(self.sound.pitch);
         self.play();
         self.release();
+    }
+
+    /// Resets the channel, sets the sound, plays it and releases envelopes.
+    pub fn play_sound(&mut self, sound:&Sound) {
+        self.set_sound(sound);
+        self.reset();
+        self.play_and_release();
     }
 
     /// Stops sound generation on this channel.
