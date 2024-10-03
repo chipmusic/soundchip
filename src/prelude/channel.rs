@@ -10,7 +10,7 @@ const FREQ_C4: f32 = 261.63;
 #[derive(Debug)]
 pub struct Channel {
     /// All public sound properties
-    pub sound: Sound,
+    sound: Sound,
     // Wavetable
     wavetable: Vec<f32>,
     wave_out: f32,
@@ -119,17 +119,6 @@ impl Channel {
         self.release();
     }
 
-    /// Sets all of the channel's relevant properties to match the sound's properties, but
-    /// does not change the specs (the only exception is the wavetable envelope,
-    /// which can be set by the sound).
-    pub fn set_sound(&mut self, sound: &Sound) {
-        self.sound = sound.clone();
-        if let Some(env) = &sound.waveform {
-            self.wavetable = Self::get_wavetable(&self.specs, env);
-        }
-        self.reset();
-    }
-
     /// Stops sound generation on this channel.
     pub fn stop(&mut self) {
         self.playing = false;
@@ -159,6 +148,11 @@ impl Channel {
     /// The virtual Chip specs used in this channel.
     pub fn specs(&self) -> &SpecsChip {
         &self.specs
+    }
+
+    /// The current sound settings.
+    pub fn sound(&self) -> &Sound {
+        &self.sound
     }
 
     /// True if channel is set to noise, false if set to tone.
@@ -210,7 +204,6 @@ impl Channel {
     pub fn reset_envelopes(&mut self) {
         self.time_env = 0.0;
         self.last_env_time = 0.0;
-        self.last_env = EnvelopeValues::default();
         if let Some(env) = &mut self.sound.volume_env {
             env.reset();
         }
@@ -228,6 +221,17 @@ impl Channel {
         self.rng = Self::get_rng(&specs);
         self.wavetable = Self::get_wavetable_from_specs(&specs);
         self.specs = specs;
+    }
+
+    /// Sets all of the channel's relevant properties to match the sound's properties, but
+    /// does not change the specs (the only exception is the wavetable envelope,
+    /// which can be set by the sound).
+    pub fn set_sound(&mut self, sound: &Sound) {
+        self.sound = sound.clone();
+        if let Some(env) = &sound.waveform {
+            self.wavetable = Self::get_wavetable(&self.specs, env);
+        }
+        self.reset();
     }
 
     /// Generates wavetable samples from an envelope

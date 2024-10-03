@@ -66,22 +66,22 @@ fn main() -> SdlResult {
             // Play notes, change pitch
             if app.gamepad.is_just_pressed(Button::Up) {
                 channel.set_note(octave + 1, note);
-                channel.reset_envelopes();
+                channel.reset();
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Down) {
                 channel.set_note(octave - 1, note);
-                channel.reset_envelopes();
+                channel.reset();
                 println!("Octave:{}", channel.octave());
             }
             if app.gamepad.is_just_pressed(Button::Right) {
                 channel.set_midi_note(midi_note + 1.0);
-                channel.reset_envelopes();
+                channel.reset();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             if app.gamepad.is_just_pressed(Button::Left) {
                 channel.set_midi_note(midi_note - 1.0);
-                channel.reset_envelopes();
+                channel.reset();
                 println!("Octave:{}, note:{}", channel.octave(), channel.note());
             }
             // Release envelopes when arrow buttons are lifted

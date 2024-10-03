@@ -1,3 +1,5 @@
+//! Everything you need to get a SoundChip up and running.
+//! Start witht the SoundChip, Channel and Sound structs and go from there.
 
 mod specs;
 pub use specs::*;

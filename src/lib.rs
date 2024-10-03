@@ -9,8 +9,6 @@ pub mod math;
 
 pub mod presets;
 
-/// Everything you need to get a SoundChip up and running.
-/// Start witht the SoundChip and Channel structs and go from there.
 pub mod prelude;
 
 pub(crate) mod rng;

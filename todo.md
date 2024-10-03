@@ -3,8 +3,8 @@
 [x] Noise envelope.
 
 [x] Replace all public channel members with "sound" struct, containing them.
---->[ ] Make sound private? Manipulating its wavetable envelope can lead to out-of-sync issues,
-    so it needs a proper setter for that.
+    [.] Make sound private? Manipulating its wavetable envelope can lead to out-of-sync issues,
+    so it needs a proper setter for that. Needs testing!
 
 [ ] Alternate pitch quantization strategy: pitch divider (will be the main strategy for most chips).
 
