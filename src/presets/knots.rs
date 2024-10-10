@@ -14,6 +14,15 @@ pub const KNOTS_FLAT_ONE:&[Knot<f32>] = &[
 ];
 
 // Volume
+#[allow(dead_code)]
+pub(crate) const KNOTS_VOL_TEST:&[Knot<f32>] = &[
+    Knot{time:0.0, value:1.0, interpolation:Linear},
+    Knot{time:0.25, value:0.5, interpolation:Linear},
+    Knot{time:0.5, value:0.75, interpolation:Linear},
+    Knot{time:0.75, value:0.5, interpolation:Linear},
+    Knot{time:2.0, value:0.0, interpolation:Linear},
+];
+
 pub const KNOTS_VOL_DOWN:&[Knot<f32>] = &[
     Knot{time:0.0, value:1.0, interpolation:Linear},
     Knot{time:0.5, value:0.5, interpolation:Linear},

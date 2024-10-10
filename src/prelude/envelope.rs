@@ -4,15 +4,13 @@ pub use knot::*;
 mod tests;
 
 use core::cmp::Ordering;
-use libm::floorf;
-
 use crate::{
     math::lerp,
     prelude::{KnotValue, LoopKind},
     Vec,
 };
 
-use super::Normal;
+// use super::Normal;
 
 const SAFETY_EPSILON: f32 = f32::EPSILON * 2.0;
 
@@ -22,11 +20,11 @@ pub struct Envelope<T>
 where
     T: KnotValue,
 {
-    pub echo: Option<Normal>,
     pub knots: Vec<Knot<T>>,
     pub loop_kind: LoopKind,
     release: bool,
     release_time: Option<f32>,
+    release_loop_pos: f32,
     head: usize,
 }
 
@@ -50,11 +48,11 @@ where
             });
         }
         Self {
-            echo: None,
             knots,
             head: 0,
             release: false,
             release_time: None,
+            release_loop_pos: 0.0,
             loop_kind: LoopKind::None,
         }
     }
@@ -78,18 +76,16 @@ where
                 interpolation: knot.interpolation,
             })
         }
-        knots.sort_by(|a, b| {
-            match a.partial_cmp(b){
-                Some(comp) => comp,
-                None => Ordering::Equal
-            }
+        knots.sort_by(|a, b| match a.partial_cmp(b) {
+            Some(comp) => comp,
+            None => Ordering::Equal,
         });
         Self {
-            echo: None,
             knots,
             loop_kind: LoopKind::None,
             release: false,
             release_time: None,
+            release_loop_pos: 0.0,
             head: 0,
         }
     }
@@ -136,25 +132,11 @@ where
         self
     }
 
-    /// Adds an echo multiplied by attenuation on every loop iteration.
-    pub fn echo(mut self, attenuation:Normal) -> Self {
-        self.echo = Some(attenuation);
-        match self.loop_kind {
-            LoopKind::None | LoopKind::Repeat => {
-                self.loop_kind = LoopKind::LoopPoints { loop_in: 0, loop_out: self.len() as u8 }
-            },
-            LoopKind::LoopPoints { .. } => {},
-        }
-        self
-    }
-
     /// Sorts the knots based on their time.
     pub fn sort_by_time(&mut self) {
-        self.knots.sort_by(|a, b| {
-            match a.partial_cmp(b){
-                Some(comp) => comp,
-                None => Ordering::Equal
-            }
+        self.knots.sort_by(|a, b| match a.partial_cmp(b) {
+            Some(comp) => comp,
+            None => Ordering::Equal,
         });
     }
 
@@ -165,11 +147,13 @@ where
         self.head = 0;
         self.release = false;
         self.release_time = None;
+        self.release_loop_pos = 0.0;
     }
 
     /// Releases the envelope, if loop kind is set to "LoopPoints". Does nothing otherwise.
     pub fn release(&mut self) {
-        // println!("Released");
+        // release_time and release_loop_pos are set when "peeking" the envelope, only after
+        // time reaches at least the loop_in point.
         self.release = true;
     }
 
@@ -182,11 +166,44 @@ where
         if time <= first_knot.time {
             return first_knot.value.into();
         }
-
         let last_knot = self.knots[self.knots.len() - 1];
+
+        let get_loop_time = |loop_in: u8, loop_out: u8| -> (f32, f32) {
+            let knot_in = self.knots.get(loop_in as usize);
+            let time_in = if let Some(knot) = knot_in {
+                knot.time
+            } else {
+                0.0
+            };
+
+            let knot_out = self.knots.get(loop_out as usize);
+            let time_out = if let Some(knot) = knot_out {
+                knot.time
+            } else {
+                last_knot.time
+            };
+            (time_in, time_out)
+        };
+
+        // Delayed release time - prevents setting the release time until
+        // we actually reach the loop_in point
+        let mut get_release_time = |time_in: f32, loop_pos:f32| {
+            if self.release {
+                if self.release_time.is_none() {
+                    if time >= time_in {
+                        self.release_time = Some(time);
+                        self.release_loop_pos = loop_pos;
+                    }
+                }
+            }
+        };
+
         match self.loop_kind {
             LoopKind::None => {
-                self.peek_without_loop(time, first_knot.time, last_knot.time, last_knot.value)
+                if time >= last_knot.time {
+                    return last_knot.value.into();
+                }
+                return self.peek_within_time_range(time, 1.0);
             }
             LoopKind::Repeat => {
                 if time == last_knot.time {
@@ -199,130 +216,107 @@ where
                 }
                 self.peek_within_time_range(time, 1.0)
             }
-            LoopKind::LoopPoints { loop_in, loop_out } => {
-                let knot_in = self.knots.get(loop_in as usize);
-                let time_in = if let Some(knot) = knot_in {
-                    knot.time
-                } else {
-                    0.0
-                };
+            LoopKind::Echo { loop_in, loop_out, decay } => {
+                let decay:f32 = decay.into();
+                let (time_in, time_out) = get_loop_time(loop_in, loop_out);
+                let loop_pos = get_loop_position_f32(time, time_in, time_out);
 
-                let knot_out = self.knots.get(loop_out as usize);
-                let time_out = if let Some(knot) = knot_out {
-                    knot.time
-                } else {
-                    last_knot.time
-                };
+                get_release_time(time_in, loop_pos);
 
-                if self.release {
-                    let local_time = if let Some(released_time) = self.release_time {
-                        (time - released_time) + time_in
-                    } else {
-                        if time < time_in {
-                            time
-                        } else {
-                            // println!("Setting release time to {}", time);
-                            self.release_time = Some(time);
-                            self.head = loop_in as usize;
-                            time_in
-                        }
-                    };
-                    self.peek_without_loop(
-                        local_time,
-                        first_knot.time,
-                        last_knot.time,
-                        last_knot.value,
-                    )
-                } else {
-                    // println!("Looping with time_out{}", time_out);
-                    let loop_t = get_loop_position_f32(time, time_in, time_out);
-                    self.peek_within_time_range(loop_t, 1.0)
-                }
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn peek_without_loop(&mut self, local_time: f32, time_in: f32, time_out: f32, value_out: T) -> f32 {
-        // println!("time:{}", time);
-        if local_time >= time_out {
-            if let Some(attenuation) = self.echo {
-                let iteration = floorf((local_time + time_in) / time_out);
-                let attenuation:f32 = attenuation.into();
-                let echo = attenuation / iteration;
-                #[cfg(debug_assertions)]{
-                    if iteration < 1.0 {
-                        unreachable!();
+                if let Some(release_time) = self.release_time {
+                    let local_time = self.release_loop_pos + (time - release_time);
+                    if local_time > last_knot.time {
+                        self.head = 0;
+                        let normal_t = get_loop_position_f32(local_time, first_knot.time, last_knot.time);
+                        let iteration = get_iteration(local_time, first_knot.time, last_knot.time);
+                        let attenuation = 1.0 - (1.0 - (decay / iteration));
+                        return self.peek_within_time_range(normal_t, attenuation);
                     }
+                    return self.peek_within_time_range(local_time, 1.0);
+                } else {
+                    self.peek_within_time_range(loop_pos, 1.0)
                 }
-                return self.peek_within_time_range(local_time % time_out, echo);
             }
-            // println!("time out: {}", time_out);
-            return value_out.into();
+            LoopKind::LoopPoints { loop_in, loop_out } => {
+                let (time_in, time_out) = get_loop_time(loop_in, loop_out);
+                let loop_pos = get_loop_position_f32(time, time_in, time_out);
+
+                get_release_time(time_in, loop_pos);
+
+                if let Some(release_time) = self.release_time {
+                    let local_time = self.release_loop_pos + (time - release_time);
+                    if local_time > last_knot.time {
+                        return last_knot.value.into();
+                    }
+                    return self.peek_within_time_range(local_time, 1.0);
+                } else {
+                    self.peek_within_time_range(loop_pos, 1.0)
+                }
+            }
         }
-        let normal_t = get_loop_position_f32(local_time, time_in, time_out);
-        // println!("normal time:{}", normal_t);
-        self.peek_within_time_range(normal_t, 1.0)
     }
 
     // Requires pre-filtering values outside of envelope time range to work! Will hit
     // an unreachable scope if head == len-1.
-    fn peek_within_time_range(&mut self, time: f32, attenuation:f32) -> f32 {
-        // "head" should always be valid
-        // println!("Peeking time: {:.3}", time);
-        let current = self.knots[self.head];
-        if self.head + 1 < self.knots.len() {
-            // If there's a "next" we still haven't reached last knot
-            let next = self.knots[self.head + 1];
-            let local_time = time - current.time;
-            // let local_time = time;
-            let next_time = next.time - current.time;
+    fn peek_within_time_range(&mut self, time: f32, attenuation: f32) -> f32 {
+        let last_index = self.knots.len() - 1;
+        // "head" should always be valid!
+        if self.head < last_index {
+            let mut current = self.knots[self.head];
+            let mut next = self.knots[self.head+1];
 
-            // Detect head change, recurse (should never recurse more than just once)
-            if local_time > next_time {
-                // Search for the correct knot range
-                let mut low = 0;
-                let mut high = self.knots.len() - 1;
-                while low <= high {
-                    self.head = (low + high) / 2;
-                    let head_time = self.knots[self.head].time;
-                    let next_time = self.knots[self.head + 1].time;
-                    // println!("Next... trying head={}", self.head);
-                    if head_time <= time {
-                        if next_time >= time {
-                            // Found the time range!
-                            break;
-                        } else {
-                            // println!("Growing low...");
-                            low += 1;
+            if time < current.time || time > next.time {
+                // Search if time is outside current knot pair
+                loop {
+                    if time < current.time {
+                        #[cfg(debug_assertions)]{
+                            if self.head == 0 {
+                                unreachable!()
+                            }
                         }
-                    } else {
-                        // println!("Shrinking high...");
-                        high -= 1;
+                        self.head -= 1;
+                        current = self.knots[self.head];
+                        next = self.knots[self.head+1];
+                    } else if time > next.time {
+                        #[cfg(debug_assertions)]{
+                            if self.head == last_index {
+                                unreachable!()
+                            }
+                        }
+                        self.head += 1;
+                        current = self.knots[self.head];
+                        next = self.knots[self.head+1];
+                    }
+                    if time >= current.time && time <= next.time{
+                        break
                     }
                 }
-                // Re-run with updated head
-                return self.peek_within_time_range(time, attenuation);
             }
 
             // Return interpolated value
             match current.interpolation {
                 Interpolation::Linear => {
+                    let local_time = time - current.time;
+                    let next_time = next.time - current.time;
                     let x = local_time / next_time;
-                    // println!("time:{}, local_time:{}, next_time:{}, x: {}", time, local_time, next_time, x);
+                    // println!("time:{:.2}, head:{}", time, self.head);
                     lerp(current.value, next.value, x) * attenuation
-                },
+                }
                 Interpolation::Step => {
                     // println!("step");
                     current.value.into() * attenuation
-                },
+                }
             }
-
         } else {
-            // Should not happen, since time should always be in the correct range!
-            // TODO: Change to fail graciously, just in case.
-            #[cfg(debug_assertions)]{
+            // Should bever be reached, since "time" should always be in the correct range
+            // and head never goes outside the valid range.
+            #[cfg(debug_assertions)]
+            {
                 unreachable!();
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                0.0
             }
         }
     }
@@ -340,15 +334,24 @@ where
 //     input_pos
 // }
 
-///
-pub(crate) fn get_loop_position_f32(input_pos: f32, loop_in: f32, loop_out: f32) -> f32 {
-    if input_pos > loop_out {
-        let diff = input_pos - loop_out;
+pub(crate) fn get_loop_position_f32(t: f32, loop_in: f32, loop_out: f32) -> f32 {
+    if t > loop_out {
+        let diff = t - loop_out;
         let width = loop_out - loop_in;
         if width < SAFETY_EPSILON {
             return loop_out;
         }
         return (diff % width) + loop_in;
     }
-    input_pos
+    t
+}
+
+fn get_iteration(local_time:f32, first_time: f32, last_time: f32) -> f32 {
+    if last_time > first_time {
+        let delta = last_time - first_time;
+        let iteration = (local_time - first_time) / delta;
+        libm::floorf(iteration)
+    } else {
+        libm::floorf(local_time / last_time)
+    }
 }

@@ -19,16 +19,19 @@ fn main() -> SdlResult {
     let sound = Sound {
         volume: 1.0,
         pitch: Note::C.frequency(4),
-        waveform: Some(Envelope::from(KNOTS_WAVE_SAWTOOTH)),
+        waveform: Some(Envelope::from(KNOTS_WAVE_SQUARE)),
         noise_env: None,
         // noise_env: Some(
         //     Envelope::from(KNOTS_VOL_DOWN).scale_time(1.0/30.0)
         // ),
         volume_env: Some(
-            Envelope::from(KNOTS_VOL_DOWN).set_loop(LoopKind::LoopPoints {
-                loop_in: 1,
-                loop_out: 1,
-            }).scale_time(0.5).echo(0.5.into()),
+            Envelope::from(KNOTS_VOL_DOWN)
+                .set_loop(LoopKind::Echo {
+                    loop_in: 1,
+                    loop_out: 1,
+                    decay: 0.5.into(),
+                })
+                .scale_time(0.5),
         ),
         pitch_env: None,
         tremolo: Some(TREMOLO_SUBTLE),
@@ -40,7 +43,6 @@ fn main() -> SdlResult {
     chip.channels.push(Channel::from(SPEC_CHIP_PCE));
     if let Some(channel) = chip.channels.get_mut(ch) {
         channel.set_sound(&sound);
-        // channel.set_noise(true);
         channel.play();
         channel.release();
     }
