@@ -1,5 +1,5 @@
 use crate::prelude::KnotValue;
-use core::fmt::{Display, Formatter};
+use core::{fmt::{Display, Formatter}, i16};
 
 /// Stored internally as i16, allows converting to/from a -1.0 to 1.0 f32 range.
 /// Any f32 value outside of this range will be clipped.
@@ -7,6 +7,18 @@ use core::fmt::{Display, Formatter};
 pub struct NormalSigned(i16);
 
 const MAX: f32 = i16::MAX as f32;
+
+impl NormalSigned {
+    pub const ZERO: Self = Self(0);
+    pub const QUARTER: Self = Self(i16::MAX / 4);
+    pub const HALF: Self = Self(i16::MAX / 2);
+    pub const THREE_QUARTER: Self = Self((i16::MIN / 4) * 3);
+    pub const ONE: Self = Self(i16::MAX);
+    pub const NEG_QUARTER: Self = Self(i16::MIN / 4);
+    pub const NEG_HALF: Self = Self(i16::MIN / 2);
+    pub const NEG_THREE_QUARTER: Self = Self((i16::MIN / 4) * 3);
+    pub const NEG_ONE: Self = Self(i16::MIN);
+}
 
 /// Returns an f32 value between -1.0 and 1.0 (inclusive).
 impl Into<f32> for NormalSigned {

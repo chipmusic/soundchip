@@ -48,7 +48,7 @@ pub struct Channel {
 
 impl From<SpecsChip> for Channel {
     fn from(specs: SpecsChip) -> Self {
-        let wave_env = if let Some(knots) = specs.wavetable.default_waveform {
+        let wave_env:Envelope<NormalSigned> = if let Some(knots) = specs.wavetable.default_waveform {
             Envelope::from(knots)
         } else {
             Envelope::from(KNOTS_WAVE_TRIANGLE)

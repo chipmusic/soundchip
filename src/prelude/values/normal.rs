@@ -1,5 +1,8 @@
 use crate::prelude::KnotValue;
-use core::fmt::{Display, Formatter};
+use core::{
+    fmt::{Display, Formatter},
+    u16,
+};
 
 /// Stored internally as u16, allows converting to/from a 0.0 to 1.0 f32 range.
 /// Any f32 value outside of this range will be clipped.
@@ -7,6 +10,14 @@ use core::fmt::{Display, Formatter};
 pub struct Normal(u16);
 
 const MAX: f32 = u16::MAX as f32;
+
+impl Normal {
+    pub const ZERO: Self = Self(0);
+    pub const QUARTER: Self = Self(u16::MAX / 4);
+    pub const HALF: Self = Self(u16::MAX / 2);
+    pub const THREE_QUARTER: Self = Self((u16::MAX / 4) * 3);
+    pub const ONE: Self = Self(u16::MAX);
+}
 
 /// Returns an f32 value between -1.0 and 1.0 (inclusive).
 impl Into<f32> for Normal {
@@ -62,7 +73,7 @@ fn normal_value_clip() {
 // NOT lossless, tiny changes can occur.
 // Good up to about 5 decimals.
 fn normal_value_precision() {
-    for n in 0 .. 10 {
+    for n in 0..10 {
         let a = n as f32 / 10.0;
         let a_normal = Normal::from(a);
         let a_converted: f32 = a_normal.into();

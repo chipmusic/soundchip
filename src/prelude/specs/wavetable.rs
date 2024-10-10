@@ -1,4 +1,4 @@
-use crate::prelude::Knot;
+use crate::prelude::{Knot, NormalSigned};
 use crate::presets::*;
 
 /// Controls the wavetable length, quantization and looping. SoundChip always uses a wavetable, even
@@ -7,7 +7,7 @@ use crate::presets::*;
 pub struct SpecsWavetable {
     /// Optional default waveform, applied to the wavetable when creating a
     /// new channel using Channel::from(specs).
-    pub default_waveform: Option<&'static [Knot<f32>]>,
+    pub default_waveform: Option<&'static [Knot<NormalSigned>]>,
     /// The length of the wavetable (how many samples per cycle)
     pub sample_count: usize,
     /// TODO: This will need a LoopKind enum.

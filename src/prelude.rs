@@ -13,6 +13,9 @@ pub use channel::*;
 mod envelope;
 pub use envelope::*;
 
+mod envelope_preset;
+pub use envelope_preset::*;
+
 mod error;
 pub use error::*;
 
@@ -27,6 +30,9 @@ pub use sample::*;
 
 mod sound;
 pub use sound::*;
+
+mod sound_preset;
+pub use sound_preset::*;
 
 mod sound_chip;
 pub use sound_chip::*;

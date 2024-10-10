@@ -3,14 +3,14 @@ pub use knot::*;
 
 mod tests;
 
-use core::cmp::Ordering;
 use crate::{
     math::lerp,
     prelude::{KnotValue, LoopKind},
     Vec,
 };
+use core::cmp::Ordering;
 
-// use super::Normal;
+use super::EnvelopePreset;
 
 const SAFETY_EPSILON: f32 = f32::EPSILON * 2.0;
 
@@ -60,21 +60,22 @@ where
 
 /// Generates a new envelope from a slice of knots. Knots values may be clamped
 /// depending the target envelope's Knot's value type.
-impl<T> From<&[Knot<f32>]> for Envelope<T>
+impl<T, V> From<&[Knot<T>]> for Envelope<V>
 where
-    T: KnotValue,
+    T: KnotValue + Into<V>,
+    V: KnotValue
 {
-    fn from(source: &[Knot<f32>]) -> Self {
+    fn from(source: &[Knot<T>]) -> Self {
         // // Couldn't get "collect()" to work with KnotValue trait.
         let len = source.len();
-        let mut knots = Vec::new();
+        let mut knots = Vec::<Knot<V>>::new();
         for i in 0..len {
             let knot = source[i];
-            knots.push(Knot {
+            knots.push( Knot{
                 time: knot.time,
                 value: knot.value.into(),
                 interpolation: knot.interpolation,
-            })
+            });
         }
         knots.sort_by(|a, b| match a.partial_cmp(b) {
             Some(comp) => comp,
@@ -88,6 +89,20 @@ where
             release_loop_pos: 0.0,
             head: 0,
         }
+    }
+}
+
+
+impl<T> From<EnvelopePreset<T>> for Envelope<T>
+where
+    T: 'static + KnotValue,
+{
+    fn from(value: EnvelopePreset<T>) -> Self {
+        Self::from(value.knots)
+            .offset_values(value.value_offset)
+            .scale_values(value.value_scale)
+            .scale_time(value.time_scale)
+            .set_loop(value.loop_kind)
     }
 }
 
@@ -187,7 +202,7 @@ where
 
         // Delayed release time - prevents setting the release time until
         // we actually reach the loop_in point
-        let mut get_release_time = |time_in: f32, loop_pos:f32| {
+        let mut get_release_time = |time_in: f32, loop_pos: f32| {
             if self.release {
                 if self.release_time.is_none() {
                     if time >= time_in {
@@ -216,8 +231,12 @@ where
                 }
                 self.peek_within_time_range(time, 1.0)
             }
-            LoopKind::Echo { loop_in, loop_out, decay } => {
-                let decay:f32 = decay.into();
+            LoopKind::Echo {
+                loop_in,
+                loop_out,
+                decay,
+            } => {
+                let decay: f32 = decay.into();
                 let (time_in, time_out) = get_loop_time(loop_in, loop_out);
                 let loop_pos = get_loop_position_f32(time, time_in, time_out);
 
@@ -227,7 +246,8 @@ where
                     let local_time = self.release_loop_pos + (time - release_time);
                     if local_time > last_knot.time {
                         self.head = 0;
-                        let normal_t = get_loop_position_f32(local_time, first_knot.time, last_knot.time);
+                        let normal_t =
+                            get_loop_position_f32(local_time, first_knot.time, last_knot.time);
                         let iteration = get_iteration(local_time, first_knot.time, last_knot.time);
                         let attenuation = 1.0 - (1.0 - (decay / iteration));
                         return self.peek_within_time_range(normal_t, attenuation);
@@ -257,66 +277,69 @@ where
     }
 
     // Requires pre-filtering values outside of envelope time range to work! Will hit
-    // an unreachable scope if head == len-1.
+    // an unreachable scope if head >= len-1.
     fn peek_within_time_range(&mut self, time: f32, attenuation: f32) -> f32 {
         let last_index = self.knots.len() - 1;
         // "head" should always be valid!
-        if self.head < last_index {
-            let mut current = self.knots[self.head];
-            let mut next = self.knots[self.head+1];
-
-            if time < current.time || time > next.time {
-                // Search if time is outside current knot pair
-                loop {
-                    if time < current.time {
-                        #[cfg(debug_assertions)]{
-                            if self.head == 0 {
-                                unreachable!()
-                            }
-                        }
-                        self.head -= 1;
-                        current = self.knots[self.head];
-                        next = self.knots[self.head+1];
-                    } else if time > next.time {
-                        #[cfg(debug_assertions)]{
-                            if self.head == last_index {
-                                unreachable!()
-                            }
-                        }
-                        self.head += 1;
-                        current = self.knots[self.head];
-                        next = self.knots[self.head+1];
-                    }
-                    if time >= current.time && time <= next.time{
-                        break
-                    }
-                }
-            }
-
-            // Return interpolated value
-            match current.interpolation {
-                Interpolation::Linear => {
-                    let local_time = time - current.time;
-                    let next_time = next.time - current.time;
-                    let x = local_time / next_time;
-                    // println!("time:{:.2}, head:{}", time, self.head);
-                    lerp(current.value, next.value, x) * attenuation
-                }
-                Interpolation::Step => {
-                    // println!("step");
-                    current.value.into() * attenuation
-                }
-            }
-        } else {
-            // Should bever be reached, since "time" should always be in the correct range
-            // and head never goes outside the valid range.
-            #[cfg(debug_assertions)]
+        if self.head >= last_index {
             {
-                unreachable!();
+                // This should bever be reached, since "time" should always be in the
+                // correct range thus head never goes outside the valid range.
+                #[cfg(debug_assertions)]
+                {
+                    unreachable!();
+                }
+                #[cfg(not(debug_assertions))]
+                {
+                    return 0.0;
+                }
             }
-            #[cfg(not(debug_assertions))]
-            {
-                0.0
+        }
+        let mut current = self.knots[self.head];
+        let mut next = self.knots[self.head + 1];
+
+        if time < current.time || time > next.time {
+            // Search if time is outside current knot pair
+            loop {
+                if time < current.time {
+                    #[cfg(debug_assertions)]
+                    {
+                        if self.head == 0 {
+                            unreachable!()
+                        }
+                    }
+                    self.head -= 1;
+                    current = self.knots[self.head];
+                    next = self.knots[self.head + 1];
+                } else if time > next.time {
+                    #[cfg(debug_assertions)]
+                    {
+                        if self.head == last_index {
+                            unreachable!()
+                        }
+                    }
+                    self.head += 1;
+                    current = self.knots[self.head];
+                    next = self.knots[self.head + 1];
+                }
+                if time >= current.time && time <= next.time {
+                    break;
+                }
+            }
+        }
+
+        // Return interpolated value
+        match current.interpolation {
+            Interpolation::Linear => {
+                let local_time = time - current.time;
+                let next_time = next.time - current.time;
+                let x = local_time / next_time;
+                // println!("time:{:.2}, head:{}", time, self.head);
+                lerp(current.value, next.value, x) * attenuation
+            }
+            Interpolation::Step => {
+                // println!("step");
+                current.value.into() * attenuation
             }
         }
     }
@@ -346,7 +369,7 @@ pub(crate) fn get_loop_position_f32(t: f32, loop_in: f32, loop_out: f32) -> f32 
     t
 }
 
-fn get_iteration(local_time:f32, first_time: f32, last_time: f32) -> f32 {
+fn get_iteration(local_time: f32, first_time: f32, last_time: f32) -> f32 {
     if last_time > first_time {
         let delta = last_time - first_time;
         let iteration = (local_time - first_time) / delta;
