@@ -7,6 +7,7 @@ pub enum ChipError {
     InvalidUf16Range,
     InvalidWavetable,
     InvalidEnvelope,
+    InvalidChannel,
 }
 
 impl fmt::Display for ChipError {
@@ -24,6 +25,9 @@ impl fmt::Display for ChipError {
             ChipError::InvalidEnvelope => {
                 write!(f, "Invalid Envelope: knot value out of -1.0 to 1.0 range")
             }
+            ChipError::InvalidChannel => {
+                write!(f, "Invalid Channel: Channel Index not found")
+            },
         }
     }
 }

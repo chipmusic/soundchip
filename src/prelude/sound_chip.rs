@@ -84,6 +84,24 @@ impl SoundChip {
         }
     }
 
+    /// Adds new channel from specs, returns its index.
+    pub fn add_channel(&mut self, specs:SpecsChip) -> usize {
+        let index = self.channels.len();
+        self.channels.push(Channel::from(specs));
+        index
+    }
+
+    /// Removes channel, returns an empty result if successful, an error
+    /// if the operation failed.
+    pub fn remove_channel(&mut self, index:usize) -> Result<(), ChipError> {
+        if index < self.channels.len(){
+            self.channels.remove(index);
+            Ok(())
+        } else {
+            Err(ChipError::InvalidChannel)
+        }
+    }
+
     /// Initializes every channel, and optionally starts playing them.
     pub fn channel_init_all(&mut self, play: bool) {
         for channel in &mut self.channels {

@@ -21,9 +21,6 @@ fn main() -> SdlResult {
         pitch: Note::C.frequency(4),
         waveform: Some(Envelope::from(KNOTS_WAVE_SQUARE)),
         noise_env: None,
-        // noise_env: Some(
-        //     Envelope::from(KNOTS_VOL_DOWN).scale_time(1.0/30.0)
-        // ),
         volume_env: Some(
             Envelope::from(KNOTS_VOL_DOWN)
                 .set_loop(LoopKind::Echo {
@@ -39,8 +36,7 @@ fn main() -> SdlResult {
     };
 
     // Add and configure channel with custom specs, start playback.
-    let ch = 0;
-    chip.channels.push(Channel::from(SPEC_CHIP_PCE));
+    let ch = chip.add_channel(SPEC_CHIP_PCE);
     if let Some(channel) = chip.channels.get_mut(ch) {
         channel.set_sound(&sound);
         channel.play();

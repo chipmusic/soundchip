@@ -5,6 +5,8 @@ use libm::{roundf, sinf};
 
 use crate::prelude::KnotValue;
 
+use core::f32::consts::FRAC_2_PI;
+
 /// Returns the MIDI note value given an octave (zero to 10) and a note (zero to 11).
 #[inline(always)]
 pub fn get_midi_note(octave: impl Into<i32>, note: impl Into<i32>) -> i32 {
@@ -44,8 +46,7 @@ pub(crate) fn wrap(value: i32, modulus: i32) -> i32 {
 
 #[inline(always)]
 pub(crate) fn compress_volume(input_vol:f32, max_vol:f32) -> f32 {
-    let mult = core::f32::consts::FRAC_2_PI;
-    sinf(input_vol/(max_vol*mult))
+    sinf(input_vol/(max_vol*FRAC_2_PI))
 }
 
 pub(crate) fn quantize_range(value: f32, steps: u16, range: RangeInclusive<f32>) -> f32 {
