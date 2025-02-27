@@ -2,13 +2,25 @@ use crate::prelude::*;
 use Interpolation::*;
 
 // Constant zero
-pub const KNOTS_FLAT_ZERO:&[Knot<NormalSigned>] = &[
+pub const KNOTS_FLAT_ZERO:&[Knot<Normal>] = &[
+    Knot{time:0.0, value:Normal::ZERO, interpolation:Linear},
+    Knot{time:1.0, value:Normal::ZERO, interpolation:Linear},
+];
+
+// Constant one
+pub const KNOTS_FLAT_ONE:&[Knot<Normal>] = &[
+    Knot{time:0.0, value:Normal::ONE, interpolation:Step},
+    Knot{time:1.0, value:Normal::ONE, interpolation:Step},
+];
+
+// Constant zero
+pub const KNOTS_SIGNED_ZERO:&[Knot<NormalSigned>] = &[
     Knot{time:0.0, value:NormalSigned::ZERO, interpolation:Linear},
     Knot{time:1.0, value:NormalSigned::ZERO, interpolation:Linear},
 ];
 
 // Constant one
-pub const KNOTS_FLAT_ONE:&[Knot<NormalSigned>] = &[
+pub const KNOTS_SIGNED_ONE:&[Knot<NormalSigned>] = &[
     Knot{time:0.0, value:NormalSigned::ONE, interpolation:Step},
     Knot{time:1.0, value:NormalSigned::ONE, interpolation:Step},
 ];
@@ -26,6 +38,18 @@ pub(crate) const KNOTS_VOL_TEST:&[Knot<Normal>] = &[
 pub const KNOTS_VOL_DOWN:&[Knot<Normal>] = &[
     Knot{time:0.0, value:Normal::ONE, interpolation:Linear},
     Knot{time:0.5, value:Normal::HALF, interpolation:Linear},
+    Knot{time:1.0, value:Normal::ZERO, interpolation:Linear},
+];
+
+pub const KNOTS_VOL_UP:&[Knot<Normal>] = &[
+    Knot{time:0.0, value:Normal::ZERO, interpolation:Linear},
+    Knot{time:0.5, value:Normal::HALF, interpolation:Linear},
+    Knot{time:1.0, value:Normal::ONE, interpolation:Linear},
+];
+
+pub const KNOTS_VOL_UP_DOWN:&[Knot<Normal>] = &[
+    Knot{time:0.0, value:Normal::ZERO, interpolation:Linear},
+    Knot{time:0.5, value:Normal::ONE, interpolation:Linear},
     Knot{time:1.0, value:Normal::ZERO, interpolation:Linear},
 ];
 

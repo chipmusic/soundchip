@@ -48,7 +48,8 @@ pub struct Channel {
 
 impl From<SpecsChip> for Channel {
     fn from(specs: SpecsChip) -> Self {
-        let wave_env:Envelope<NormalSigned> = if let Some(knots) = specs.wavetable.default_waveform {
+        let wave_env: Envelope<NormalSigned> = if let Some(knots) = specs.wavetable.default_waveform
+        {
             Envelope::from(knots)
         } else {
             Envelope::from(KNOTS_WAVE_TRIANGLE)
@@ -64,7 +65,6 @@ impl From<SpecsChip> for Channel {
             wavetable: Self::get_wavetable_from_specs(&specs),
             wave_out: 0.0,
             // Volume
-            // volume: 1.0,
             volume_attn: 0.0,
             // Pitch
             midi_note: 60.0,
@@ -122,10 +122,13 @@ impl Channel {
     }
 
     /// Resets the channel, sets the sound, plays it and releases envelopes.
-    pub fn play_sound(&mut self, sound:&Sound) {
-        self.set_sound(sound);
+    pub fn play_sound(&mut self, sound: &Sound, release: bool) {
         self.reset();
-        self.play_and_release();
+        self.set_sound(sound);
+        self.play();
+        if release {
+            self.release();
+        }
     }
 
     /// Stops sound generation on this channel.

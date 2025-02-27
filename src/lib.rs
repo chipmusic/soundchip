@@ -11,4 +11,4 @@ pub mod presets;
 
 pub mod prelude;
 
-pub(crate) mod rng;
+pub mod rng;

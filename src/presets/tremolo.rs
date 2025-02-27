@@ -11,3 +11,9 @@ pub const TREMOLO_INTENSE:Tremolo = Tremolo{
     amplitude: 0.2,
     frequency: 15.0,
 };
+
+pub const TREMOLO_ROUGH:Tremolo = Tremolo{
+    steps: None,
+    amplitude: 0.5,
+    frequency: 15.0,
+};

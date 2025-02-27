@@ -4,7 +4,7 @@ use super::{Envelope, Normal, NormalSigned, Tremolo, Vibratto};
 
 /// A single struct containing all public properties a sound can have,
 /// such as volume, pitch, envelopes, etc.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Sound {
     /// Base volume excluding envelopes.
     pub volume: f32,
