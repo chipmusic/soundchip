@@ -1,6 +1,6 @@
 [package]
 name = "soundchip"
-version = "0.4.6"
+version = "0.4.61"
 edition = "2021"
 description = "Software sinth with configurable channels for authentic sounding virtual sound chips."
 license = "MIT"
